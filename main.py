@@ -3,31 +3,36 @@ from dotenv import load_dotenv
 # Reads the .env file and loads the variables into the environment
 load_dotenv()
 
-from crewai import Agent, Task, Crew, Process
-from crewai_tools import FileReadTool, CSVSearchTool
+from crewai import Agent, Task, Crew, Process, LLM
+from crewai_tools import FileReadTool
 import os
 import json
 import sys
 
-def create_interviewer_agent():
-    # Define the interview helper agent with specific tools
+
+
+# Agent factories
+
+def create_interviewer_agent(llm=None):
     return Agent(
         role="Interview Helper",
         goal="Help a candidate prepare to a job interview based on their CV and the job description.",
-        background="You are helping Livia prepare for a job interview. You have access to her CV information and the job description. Use this information to generate relevant interview questions and answers. Talk like Livia would - natural, direct to the point but polite.",
+        backstory="You are helping Livia prepare for a job interview. You have access to her CV information and the job description. Use this information to generate relevant interview questions and answers. Talk like Livia would - natural, direct to the point but polite.",
         verbose=True,
-        allow_delegation=False
+        allow_delegation=False,
+        llm=llm,
     )
 
-def create_reading_summary():
-    # Define the interview helper agent with specific tools
+
+def create_reading_summary(llm=None):
     return Agent(
         role="Reading Summarizer",
         goal="Read a pdf file (e.g. an article or book chapter) and generate an excel file with what Livia would find relevant and a summary of the key concepts.",
-        background="You are helping Livia summarize readings from her Graduate Education classes. You have access to the reading material in pdf format. Use this information to generate an excel file with what Livia would find relevant, given her interests, and a summary of the key concepts. Write like Livia would - natural and informal.",
+        backstory="You are helping Livia summarize readings from her Graduate Education classes. You have access to the reading material in pdf format. Use this information to generate an excel file with what Livia would find relevant, given her interests, and a summary of the key concepts. Write like Livia would - natural and informal.",
         verbose=True,
         allow_delegation=False,
-        tools=[FileReadTool(), CSVSearchTool()]
+        tools=[FileReadTool()],
+        llm=llm,
     )
 
 def create_interview_task(agent, cv, job_description):
@@ -37,18 +42,19 @@ def create_interview_task(agent, cv, job_description):
         Use the following information:
         CV: {cv}
         Job Description: {job_description}""",
-        expected_outcome=f"""A full preparation for the interview. Include the following:
+        expected_output=f"""A full preparation for the interview. Include the following:
         1) A list of potential questions
         2) Answers in Livia's voice following the STAR method
         3) Tips for Livia to feel confident and prepared.""",
         agent=agent,
     )
 
+
 def create_reading_summary_task(agent, pdf_path, excel_path, interests):
     # Define the task for the interview helper agent
     return Task(
         description=f"""Read the pdf file located at {pdf_path}. It contains an article or book chapter about a subject within education. Then, generate an excel file at {excel_path} with a summary of the key concepts and what Livia would find relevant. Write like Livia would - natural and informal. Livia is interested in the following topics: {interests}. Use this information to determine what she would find relevant in the context of the reading.""",
-        expected_outcome=f"""An excel file located at {excel_path} with the following columns:
+        expected_output=f"""An excel file located at {excel_path} with the following columns:
         1) Name - name of the reading
         2) Key concepts & Definitions - summary of the key concepts and its corresponding definitions, as Livia would write them - informal and natural
         3) Relevance & Curiosity - why this is relevant to Livia's interests
@@ -67,6 +73,7 @@ INTERESTS = [
     "soft skill development",
 ]
 
+
 def main():
     """Concise runner for hw1.
 
@@ -81,6 +88,16 @@ def main():
     missing = [v for v in ("GEMINI_API_KEY", "MODEL_NAME") if v not in os.environ]
     if missing:
         print(f"Error: missing required environment variables: {', '.join(missing)}", file=sys.stderr)
+        sys.exit(1)
+
+    # Construct a Gemini LLM instance using the simple crewai LLM constructor
+    model_name = os.environ.get("MODEL_NAME")
+    api_key = os.environ.get("GEMINI_API_KEY")
+
+    try:
+        llm = LLM(model=model_name, api_key=api_key)
+    except Exception as e:
+        print("Failed to instantiate crewai.LLM:", e, file=sys.stderr)
         sys.exit(1)
 
     # minimal interactive inputs
@@ -99,15 +116,15 @@ def main():
     if pdf:
         excel = input("Optional: excel output path (default: reading_summary.xlsx): ").strip() or "reading_summary.xlsx"
 
-    print("\n\ud83e\udd16 Creating agents...")
-    interviewer, reader = create_interviewer_agent(), create_reading_summary()
+    print("\nCreating agents...")
+    interviewer, reader = create_interviewer_agent(llm=llm), create_reading_summary(llm=llm)
 
-    print("\ud83d\udccb Preparing tasks...")
+    print("Preparing tasks...")
     tasks = [create_interview_task(interviewer, cv_text, job_description)]
     if pdf:
         tasks.append(create_reading_summary_task(reader, pdf, excel, interests=INTERESTS))
 
-    print("\ud83d\udc65 Launching crew...")
+    print("Launching crew...")
     crew = Crew(
         agents=[interviewer, reader],
         tasks=tasks,
@@ -115,10 +132,10 @@ def main():
         verbose=True,
     )
 
-    print("\ud83c\udfaf Running crew...")
+    print("Running crew...")
     result = crew.kickoff()
 
-    print("\n\u2705 Crew finished. Result:\n")
+    print("\nCrew finished. Result:\n")
     print(result)
 
 
