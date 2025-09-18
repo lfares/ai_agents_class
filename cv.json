@@ -1,0 +1,178 @@
+{
+  "education": [
+    {
+      "institution_name": "Harvard University",
+      "location": "Cambridge, US",
+      "period": "Jun. 2025 - Present",
+      "course": "Master of Education - Learning Design, Innovation, and Technology Program"
+    },
+    {
+      "institution_name": "University of São Paulo (USP)",
+      "location": "São Paulo, Brazil",
+      "period": "Jul. 2023 - May 2025",
+      "course": "Post Graduation on Technology Applied to Education"
+    },
+    {
+      "institution_name": "University of São Paulo (USP)",
+      "location": "São Paulo, Brazil",
+      "period": "Oct. 2022 - Dec. 2024",
+      "course": "MBA on School Management"
+    },
+    {
+      "institution_name": "Anhanguera College",
+      "location": "São Paulo, Brazil",
+      "period": "Jan. 2022 - Jul. 2022",
+      "course": "Post Graduation on Elementary Education"
+    },
+    {
+      "institution_name": "University of São Paulo (USP)",
+      "location": "São Carlos, Brazil",
+      "period": "Feb. 2016 - Aug. 2021",
+      "course": "Bachelor of Computer Engineering"
+    }
+  ],
+  "professional_experience": [
+    {
+      "company_name": "Amazon",
+      "location": "São Paulo, Brazil",
+      "period": "Jun. 2020 - Jul. 2025",
+      "role": "Software Development Engineer II (SDE II)",
+      "tasks": [
+        "Led cross-functional projects, including the design of Brazil's compliance workflow for customer returns.",
+        "Facilitated the expansion of various Amazon US delivery programs into emerging marketplaces like Brazil, Mexico, and Australia.",
+        "Mentored over 10 entry-level engineers in their technical and professional development."
+      ],
+      "outcomes": [
+        "Enhanced the seller and delivery experience, improving the engagement of 20 million customers.",
+        "Generated over $500M in gross sales through program expansion."
+      ]
+    },
+    {
+      "company_name": "SF Labs",
+      "location": "São Carlos, Brazil",
+      "period": "Apr. - Dec. 2019",
+      "role": "Computer Vision Intern",
+      "tasks": [
+        "Contributed to the development of an intelligent computer vision system for Subway restaurants.",
+        "Created a neural network to identify purchases made.",
+        "Developed the monitoring and database system for the project."
+      ],
+      "outcomes": []
+    }
+  ],
+  "research_experience": [
+    {
+      "project_title": "Generative AI-driven Recommendations from Test Results for Personalized Learning",
+      "location": "Virtual, Brazil",
+      "period": "Jul. 2024 - May 2025",
+      "description": "Developed a GPT-based model to tailor study recommendations from test results and conducted a systematic review on the use of Generative AI in educational recommendation systems."
+    },
+    {
+      "project_title": "Active learning and technologies in public high school: challenges and opportunities in Brazil",
+      "location": "Virtual, Brazil",
+      "period": "Jan. - Dec. 2024",
+      "description": "Identified challenges and opportunities for tech integration in school management by surveying 30 public high school teachers."
+    },
+    {
+      "project_title": "Analysis of the Relationship Between Logical Thinking and Interest in Computing in Children Through Digital Games",
+      "location": "São Carlos, Brazil",
+      "period": "Feb. - Jul. 2021",
+      "description": "Analyzed the relationship between logical thinking and computing interest by using a customized Sokoban game and Hour of Code activities with 20 children."
+    },
+    {
+      "project_title": "Academic internship in the Intelligent Systems Department",
+      "location": "Brno, Czech Republic",
+      "period": "Jan. - Mar. 2019",
+      "institution": "Brno University of Technology",
+      "description": "Enhanced fingerprint image quality algorithms, focusing on improving the handling of damaged prints and updating documentation."
+    }
+  ],
+  "community_engagement": [
+    {
+      "organization_name": "Instituto Cozimax",
+      "location": "Mirassol, Brazil",
+      "period": "Sep. 2023 - Present",
+      "role": "Technology and Education Consultant and Board Member",
+      "description": "Contributed to designing and tracking evidence-based projects to empower young individuals for an organization that supports over 1,500 people annually."
+    },
+    {
+      "organization_name": "Cidadão Pró Mundo",
+      "location": "Virtual, Brazil",
+      "period": "Feb. 2022 - Jul. 2024",
+      "role": "Volunteer English Teacher",
+      "description": "Taught English monthly to a class of over 30 students from marginalized communities."
+    },
+    {
+      "organization_name": "She++ (Stanford University program)",
+      "location": "Virtual",
+      "period": "Feb. 2020 - Apr. 2021",
+      "role": "Ambassador",
+      "description": "Led two virtual events in collaboration with Amazon to inspire over 100 girls from underserved communities to pursue careers in technology."
+    },
+    {
+      "organization_name": "Pyladies São Carlos",
+      "location": "São Carlos, Brazil",
+      "period": "Mar. 2019 - Mar. 2020",
+      "role": "Member and Mentor",
+      "description": "Taught Python to over 30 girls from public schools and mentored advanced Python mini-courses at university conventions."
+    },
+    {
+      "organization_name": "Enactus USP - São Carlos",
+      "location": "São Carlos, Brazil",
+      "period": "Mar. 2016 - Jul. 2018",
+      "role": "Financial Director and Member",
+      "description": "Developed projects that reduced school dropout rates by 10% and doubled the organization's capital reserves as Financial Director."
+    },
+    {
+      "organization_name": "Operação Natal",
+      "location": "São Carlos, Brazil",
+      "period": "Jul. - Dec. 2016",
+      "role": "Member",
+      "description": "Secured donations and assembled over 1,000 gift bags for local institutions."
+    }
+  ],
+  "skills": {
+    "languages": [
+      {
+        "language": "Portuguese",
+        "proficiency": "Native"
+      },
+      {
+        "language": "English",
+        "proficiency": "Fluent"
+      },
+      {
+        "language": "German",
+        "proficiency": "Intermediate"
+      }
+    ],
+    "technical_skills": [
+      "Java",
+      "Python",
+      "Javascript",
+      "Cloud Computing (AWS, Google Cloud)",
+      "Microsoft Office Suite"
+    ],
+    "soft_skills": [
+      "Project Management",
+      "Data Analysis",
+      "Mentoring",
+      "Teaching",
+      "Cross-cultural Communication"
+    ]
+  },
+  "conferences": [
+    {
+      "conference_name": "Artificial Intelligence in Education (AIED)",
+      "location": "Recife, Brazil",
+      "year": 2024,
+      "role": "Attendee"
+    },
+    {
+      "conference_name": "Grace Hopper Celebration",
+      "location": "Orlando, US",
+      "year": 2023,
+      "role": "Attendee and Scholarship Reviewer"
+    }
+  ]
+}
