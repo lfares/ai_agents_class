@@ -3,11 +3,14 @@ MIT MAS.665 class work on AI Agents and the Agentic Web.
 
 ## Local setup
 
-1) Create a local `.env` file
+1) Create a local `.env` file with your OpenAI credentials (recommended)
 
 ```bash
-echo "GEMINI_API_KEY=YOUR_API_KEY_HERE" >> .env
-echo "MODEL_NAME=gemini/gemini-1.5-pro-latest" >> .env
+# create a .env file and add your OpenAI key and preferred model
+cat > .env <<'EOF'
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-3.5-turbo
+EOF
 ```
 
 2) Create and activate a virtual environment (Python 3.12)
@@ -17,10 +20,9 @@ python3.12 -m venv .venv
 source .venv/bin/activate
 ```
 
-3) Go to the `hw1` folder and install requirements
+3) Install requirements
 
 ```bash
-cd hw1
 pip install -r requirements.txt
 ```
 
