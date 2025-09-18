@@ -2,9 +2,8 @@
 
 ## What worked
 
-- Created a runnable `main.py` runner that assembles agents, tasks, and a Crew to execute the homework workflow.
-- Added `.env.example` and `.gitignore` to protect secrets and document required environment variables.
-- Provided a concise README with minimal, repeatable setup steps (create `.env`, create Python venv, install requirements, run).
+- Fully ran the `crewai` library end-to-end: created agents, tasks, and a Crew that executes the workflow.
+- Created a local Python virtual environment and installed all required dependencies.
 
 ## What didn't work
 
@@ -15,7 +14,7 @@
 
 - `crewai` requires Python 3.10+ (Python 3.12 was used for local runs). Using the system Python (3.9) causes a compatible issue.
 - When pip reports "resolution-too-deep" or similar dependency resolver issues, upgrading pip (python -m pip install --upgrade pip) and re-running installs resolved it.
- - How to create agents and tools with `crewai`: supply `role`, `goal`, `backstory`, and use `tools=[...]` for file/IO helpers; avoid passing `llm=None`.
+ - How to create agents and tools with `crewai`: supply `role`, `goal`, `backstory`, and use `tools=[...]` for file/IO helpers.
  - How to manage API keys: keep secrets in `.env`, load them with `python-dotenv` (`load_dotenv()`), and read them via `os.environ.get()`.
 
 ## AI use
