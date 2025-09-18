@@ -3,37 +3,39 @@ from dotenv import load_dotenv
 # Reads the .env file and loads the variables into the environment
 load_dotenv()
 
-from crewai import Agent, Task, Crew, Process, LLM
+from crewai import Agent, Task, Crew, Process
+from langchain.chat_models import ChatOpenAI
 from crewai_tools import FileReadTool
 import os
 import json
 import sys
 
-
-
 # Agent factories
-
 def create_interviewer_agent(llm=None):
-    return Agent(
+    cfg = dict(
         role="Interview Helper",
         goal="Help a candidate prepare to a job interview based on their CV and the job description.",
         backstory="You are helping Livia prepare for a job interview. You have access to her CV information and the job description. Use this information to generate relevant interview questions and answers. Talk like Livia would - natural, direct to the point but polite.",
         verbose=True,
         allow_delegation=False,
-        llm=llm,
     )
+    if llm is not None:
+        cfg["llm"] = llm
+    return Agent(**cfg)
 
 
 def create_reading_summary(llm=None):
-    return Agent(
+    cfg = dict(
         role="Reading Summarizer",
         goal="Read a pdf file (e.g. an article or book chapter) and generate an excel file with what Livia would find relevant and a summary of the key concepts.",
         backstory="You are helping Livia summarize readings from her Graduate Education classes. You have access to the reading material in pdf format. Use this information to generate an excel file with what Livia would find relevant, given her interests, and a summary of the key concepts. Write like Livia would - natural and informal.",
         verbose=True,
         allow_delegation=False,
         tools=[FileReadTool()],
-        llm=llm,
     )
+    if llm is not None:
+        cfg["llm"] = llm
+    return Agent(**cfg)
 
 def create_interview_task(agent, cv, job_description):
     # Define the task for the interview helper agent
@@ -84,23 +86,13 @@ def main():
     - Creates agents/tasks, assembles a Crew and kicks it off.
     """
 
-    # ensure required environment variables are set before doing any I/O
-    missing = [v for v in ("GEMINI_API_KEY", "MODEL_NAME") if v not in os.environ]
-    if missing:
-        print(f"Error: missing required environment variables: {', '.join(missing)}", file=sys.stderr)
-        sys.exit(1)
+    # Minimal LLM wiring: always construct a small OpenAI chat model (default: gpt-3.5-turbo).
+    # Keep this simple — no Gemini checks or complex fallbacks.
+    openai_model = os.environ.get("OPENAI_MODEL", "gpt-3.5-turbo")
+    openai_key = os.environ.get("OPENAI_API_KEY")
+    llm = ChatOpenAI(model_name=openai_model, openai_api_key=openai_key)
 
-    # Construct a Gemini LLM instance using the simple crewai LLM constructor
-    model_name = os.environ.get("MODEL_NAME")
-    api_key = os.environ.get("GEMINI_API_KEY")
-
-    try:
-        llm = LLM(model=model_name, api_key=api_key)
-    except Exception as e:
-        print("Failed to instantiate crewai.LLM:", e, file=sys.stderr)
-        sys.exit(1)
-
-    # minimal interactive inputs
+    # Retrieve inputs from user
     cv_path = os.path.join(os.path.dirname(__file__), "cv.json")
     with open(cv_path, "r", encoding="utf-8") as f:
         cv_text = json.dumps(json.load(f), indent=2, ensure_ascii=False)
@@ -116,8 +108,14 @@ def main():
     if pdf:
         excel = input("Optional: excel output path (default: reading_summary.xlsx): ").strip() or "reading_summary.xlsx"
 
+    # Create agents and tasks
     print("\nCreating agents...")
-    interviewer, reader = create_interviewer_agent(llm=llm), create_reading_summary(llm=llm)
+    if llm is None:
+        interviewer = create_interviewer_agent()
+        reader = create_reading_summary()
+    else:
+        interviewer = create_interviewer_agent(llm=llm)
+        reader = create_reading_summary(llm=llm)
 
     print("Preparing tasks...")
     tasks = [create_interview_task(interviewer, cv_text, job_description)]
