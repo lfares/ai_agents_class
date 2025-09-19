@@ -6,7 +6,7 @@ load_dotenv()
 from crewai import Agent, Task, Crew, Process
 from langchain_community.chat_models import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
-from crewai_tools import FileReadTool
+from crewai_tools import FileReadTool, PDFSearchTool
 import os
 import json
 import sys
@@ -35,6 +35,7 @@ def excel_writer_tool(data: str, file_path: str) -> str:
         return write_excel_file(data_list, file_path)
     except Exception as e:
         return f"Error: {str(e)}"
+
 
 # File validation functions
 def validate_file_path(file_path, file_type="file"):
@@ -101,8 +102,8 @@ def create_interviewer_agent(llm=None):
 def create_reading_summary(llm=None):
     cfg = dict(
         role="Reading Summarizer",
-        goal="Read a pdf file (e.g. an article or book chapter) and generate a structured summary with what Livia would find relevant and key concepts.",
-        backstory="You are helping Livia summarize readings from her Graduate Education classes. You have access to the reading material in pdf format. Use this information to generate a structured summary with what Livia would find relevant, given her interests, and a summary of the key concepts. Write like Livia would - natural and informal.",
+        goal="Read a pdf file (e.g. an article or book chapter) and generate an excel file with what Livia would find relevant and a summary of the key concepts.",
+        backstory="You are helping Livia summarize readings from her Graduate Education classes. You have access to the reading material in pdf format. Use this information to generate an excel file with what Livia would find relevant, given her interests, and a summary of the key concepts. Write like Livia would - natural and informal.",
         verbose=True,
         allow_delegation=False,
         tools=[FileReadTool()],
@@ -127,19 +128,29 @@ def create_interview_task(agent, cv, job_description):
 
 
 def create_reading_summary_task(agent, pdf_path, excel_path, interests):
+    # Extract PDF text and provide it to the agent
+    try:
+        import pypdf
+        with open(pdf_path, 'rb') as file:
+            pdf_reader = pypdf.PdfReader(file)
+            pdf_text = ""
+            for page_num in range(len(pdf_reader.pages)):
+                page = pdf_reader.pages[page_num]
+                pdf_text += page.extract_text() + "\n"
+    except Exception as e:
+        pdf_text = f"Error reading PDF: {str(e)}"
+    
     # Define the task for the reading summarizer agent
     return Task(
-        description=f"""Read the pdf file located at {pdf_path}. It contains an article or book chapter about a subject within education. Generate a structured summary with what Livia would find relevant and key concepts. Write like Livia would - natural and informal. Livia is interested in the following topics: {interests}. Use this information to determine what she would find relevant in the context of the reading.
+        description=f"""Read the pdf file located at {pdf_path}. It contains an article or book chapter about a subject within education. Then, generate an excel file at {excel_path} with a summary of the key concepts and what Livia would find relevant. Write like Livia would - natural and informal. Livia is interested in the following topics: {interests}. Use this information to determine what she would find relevant in the context of the reading.
 
-Format your response as a structured summary that can be easily converted to an Excel file.""",
-        expected_output=f"""A structured summary with the following sections:
-        1) Reading Title - name of the reading
-        2) Key Concepts & Definitions - summary of the key concepts and their definitions, written in Livia's informal and natural style
-        3) Relevance & Curiosity - why this is relevant to Livia's interests and what questions it raises
-        4) Action Items - what Livia should do next based on this reading
-        5) Connections - how this connects to other topics Livia is interested in
-        
-        Format this as clear, well-structured text that can be easily converted to an Excel file.""",
+PDF Content:
+{pdf_text[:3000]}{'...' if len(pdf_text) > 3000 else ''}""",
+        expected_output=f"""An excel file located at {excel_path} with the following columns:
+        1) Name - name of the reading
+        2) Key concepts & Definitions - summary of the key concepts and its corresponding definitions, as Livia would write them - informal and natural
+        3) Relevance & Curiosity - why this is relevant to Livia's interests
+        The row should be filled with the relevant information from the reading.""",
         agent=agent,
     )
 
