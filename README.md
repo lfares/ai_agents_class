@@ -3,7 +3,7 @@ MIT MAS.665 class work on AI Agents and the Agentic Web.
 
 ## Local setup
 
-1) Create a local `.env` file with your OpenAI credentials (recommended)
+1) Create a local `.env` file with your OpenAI credentials
 
 ```bash
 # create a .env file and add your OpenAI key and preferred model

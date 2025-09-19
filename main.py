@@ -4,11 +4,85 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from crewai import Agent, Task, Crew, Process
-from langchain.chat_models import ChatOpenAI
+from langchain_community.chat_models import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from crewai_tools import FileReadTool
 import os
 import json
 import sys
+import pandas as pd
+from pathlib import Path
+from langchain_core.tools import tool
+from typing import List, Dict, Any, Optional
+
+# Excel writing function
+def write_excel_file(data: List[Dict[str, Any]], file_path: str, columns: Optional[List[str]] = None) -> str:
+    """Write data to Excel file"""
+    try:
+        df = pd.DataFrame(data, columns=columns)
+        df.to_excel(file_path, index=False)
+        return f"Successfully wrote data to {file_path}"
+    except Exception as e:
+        return f"Error writing to Excel: {str(e)}"
+
+# Create a simple tool wrapper
+@tool
+def excel_writer_tool(data: str, file_path: str) -> str:
+    """Write data to an Excel file. Data should be a JSON string of list of dictionaries."""
+    try:
+        import json
+        data_list = json.loads(data)
+        return write_excel_file(data_list, file_path)
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+# File validation functions
+def validate_file_path(file_path, file_type="file"):
+    """Validate if file exists and is accessible"""
+    path = Path(file_path)
+    if not path.exists():
+        return False, f"{file_type.capitalize()} not found: {file_path}"
+    if not path.is_file():
+        return False, f"Path is not a file: {file_path}"
+    return True, "File is valid"
+
+def get_user_input(prompt, default=None, required=False):
+    """Get user input with better error handling"""
+    while True:
+        try:
+            if default:
+                user_input = input(f"{prompt} (default: {default}): ").strip()
+                if not user_input:
+                    return default
+            else:
+                user_input = input(f"{prompt}: ").strip()
+            
+            if required and not user_input:
+                print("This field is required. Please provide a value.")
+                continue
+            
+            return user_input
+        except (EOFError, KeyboardInterrupt):
+            print("\n\nOperation cancelled by user.")
+            sys.exit(0)
+        except Exception as e:
+            print(f"Error reading input: {e}")
+            continue
+
+def save_summary_to_excel(summary_text, excel_path):
+    """Convert structured summary text to Excel file"""
+    try:
+        # Create a simple Excel file with the summary
+        data = {
+            'Section': ['Summary'],
+            'Content': [summary_text]
+        }
+        df = pd.DataFrame(data)
+        df.to_excel(excel_path, index=False)
+        return True
+    except Exception as e:
+        print(f"Error creating Excel file: {e}")
+        return False
 
 # Agent factories
 def create_interviewer_agent(llm=None):
@@ -27,8 +101,8 @@ def create_interviewer_agent(llm=None):
 def create_reading_summary(llm=None):
     cfg = dict(
         role="Reading Summarizer",
-        goal="Read a pdf file (e.g. an article or book chapter) and generate an excel file with what Livia would find relevant and a summary of the key concepts.",
-        backstory="You are helping Livia summarize readings from her Graduate Education classes. You have access to the reading material in pdf format. Use this information to generate an excel file with what Livia would find relevant, given her interests, and a summary of the key concepts. Write like Livia would - natural and informal.",
+        goal="Read a pdf file (e.g. an article or book chapter) and generate a structured summary with what Livia would find relevant and key concepts.",
+        backstory="You are helping Livia summarize readings from her Graduate Education classes. You have access to the reading material in pdf format. Use this information to generate a structured summary with what Livia would find relevant, given her interests, and a summary of the key concepts. Write like Livia would - natural and informal.",
         verbose=True,
         allow_delegation=False,
         tools=[FileReadTool()],
@@ -53,14 +127,19 @@ def create_interview_task(agent, cv, job_description):
 
 
 def create_reading_summary_task(agent, pdf_path, excel_path, interests):
-    # Define the task for the interview helper agent
+    # Define the task for the reading summarizer agent
     return Task(
-        description=f"""Read the pdf file located at {pdf_path}. It contains an article or book chapter about a subject within education. Then, generate an excel file at {excel_path} with a summary of the key concepts and what Livia would find relevant. Write like Livia would - natural and informal. Livia is interested in the following topics: {interests}. Use this information to determine what she would find relevant in the context of the reading.""",
-        expected_output=f"""An excel file located at {excel_path} with the following columns:
-        1) Name - name of the reading
-        2) Key concepts & Definitions - summary of the key concepts and its corresponding definitions, as Livia would write them - informal and natural
-        3) Relevance & Curiosity - why this is relevant to Livia's interests
-        The row should be filled with the relevant information from the reading.""",
+        description=f"""Read the pdf file located at {pdf_path}. It contains an article or book chapter about a subject within education. Generate a structured summary with what Livia would find relevant and key concepts. Write like Livia would - natural and informal. Livia is interested in the following topics: {interests}. Use this information to determine what she would find relevant in the context of the reading.
+
+Format your response as a structured summary that can be easily converted to an Excel file.""",
+        expected_output=f"""A structured summary with the following sections:
+        1) Reading Title - name of the reading
+        2) Key Concepts & Definitions - summary of the key concepts and their definitions, written in Livia's informal and natural style
+        3) Relevance & Curiosity - why this is relevant to Livia's interests and what questions it raises
+        4) Action Items - what Livia should do next based on this reading
+        5) Connections - how this connects to other topics Livia is interested in
+        
+        Format this as clear, well-structured text that can be easily converted to an Excel file.""",
         agent=agent,
     )
 
@@ -77,64 +156,157 @@ INTERESTS = [
 
 
 def main():
-    """Concise runner for hw1.
+    """Enhanced runner for AI agents with better user interaction and error handling."""
+    
+    print("🤖 Welcome to Livia's AI Agent Assistant!")
+    print("=" * 50)
+    
+    try:
+        # LLM configuration: support both OpenAI and Gemini
+        llm_type = os.environ.get("LLM_TYPE", "openai").lower()
+        print(f"🔧 Using LLM: {llm_type.upper()}")
+        
+        if llm_type == "gemini":
+            # Configure Gemini LLM using LiteLLM format
+            gemini_model = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
+            gemini_key = os.environ.get("GEMINI_API_KEY")
+            if not gemini_key:
+                print("⚠️  Warning: GEMINI_API_KEY not found. Falling back to OpenAI.")
+                llm_type = "openai"
+            else:
+                # Set the API key for Google
+                os.environ["GOOGLE_API_KEY"] = gemini_key
+                # Use LiteLLM format for Gemini
+                llm = f"gemini/{gemini_model}"
+                print(f"✅ Gemini configured with model: {gemini_model}")
+        
+        if llm_type == "openai":
+            # Configure OpenAI LLM (default)
+            openai_model = os.environ.get("OPENAI_MODEL", "gpt-3.5-turbo")
+            openai_key = os.environ.get("OPENAI_API_KEY")
+            if not openai_key:
+                print("⚠️  Warning: OPENAI_API_KEY not found. Using default model without API key.")
+                llm = None
+            else:
+                llm = ChatOpenAI(model_name=openai_model, openai_api_key=openai_key)
+                print(f"✅ OpenAI configured with model: {openai_model}")
 
-    Behavior:
-    - Loads `hw1/cv.json` and pretty-prints it for agent context.
-    - Prompts once for a job description string (falls back to a short default).
-    - Optionally asks for a PDF to summarize and an output excel path.
-    - Creates agents/tasks, assembles a Crew and kicks it off.
-    """
+        # Load CV data
+        print("\n📄 Loading CV data...")
+        cv_path = os.path.join(os.path.dirname(__file__), "cv.json")
+        is_valid, message = validate_file_path(cv_path, "CV file")
+        if not is_valid:
+            print(f"❌ {message}")
+            return
+        
+        try:
+            with open(cv_path, "r", encoding="utf-8") as f:
+                cv_data = json.load(f)
+                cv_text = json.dumps(cv_data, indent=2, ensure_ascii=False)
+            print("✅ CV data loaded successfully")
+        except Exception as e:
+            print(f"❌ Error loading CV: {e}")
+            return
 
-    # Minimal LLM wiring: always construct a small OpenAI chat model (default: gpt-3.5-turbo).
-    # Keep this simple — no Gemini checks or complex fallbacks.
-    openai_model = os.environ.get("OPENAI_MODEL", "gpt-3.5-turbo")
-    openai_key = os.environ.get("OPENAI_API_KEY")
-    llm = ChatOpenAI(model_name=openai_model, openai_api_key=openai_key)
+        # Get job description from user
+        print("\n💼 Job Interview Preparation")
+        print("-" * 30)
+        job_description = get_user_input(
+            "Enter the job description (or press Enter for default example)",
+            default="Researcher position focused on AI in education with emphasis on marginalized communities and learning design"
+        )
+        print(f"✅ Job description: {job_description[:50]}...")
 
-    # Retrieve inputs from user
-    cv_path = os.path.join(os.path.dirname(__file__), "cv.json")
-    with open(cv_path, "r", encoding="utf-8") as f:
-        cv_text = json.dumps(json.load(f), indent=2, ensure_ascii=False)
+        # Ask about PDF summarization
+        print("\n📚 Reading Summarization")
+        print("-" * 25)
+        summarize_pdf = get_user_input(
+            "Would you like to summarize a PDF reading? (y/n)",
+            default="y"
+        ).lower().startswith('y')
+        
+        pdf_path = None
+        excel_path = None
+        
+        if summarize_pdf:
+            pdf_path = get_user_input(
+                "Enter PDF file path",
+                default=os.path.join(os.path.dirname(__file__), "example_reading.pdf")
+            )
+            
+            # Validate PDF file
+            is_valid, message = validate_file_path(pdf_path, "PDF file")
+            if not is_valid:
+                print(f"❌ {message}")
+                print("Skipping PDF summarization...")
+                summarize_pdf = False
+            else:
+                print("✅ PDF file validated")
+                excel_path = get_user_input(
+                    "Enter Excel output path",
+                    default="reading_summary.xlsx"
+                )
+                print(f"✅ Will create Excel file: {excel_path}")
 
-    job_description = input(
-        "Paste the job description text for the role (brief or full). Press Enter to use a short default: "
-    ) or "Default job description: Researcher position focused on AI in education."
+        # Create agents and tasks
+        print("\n🤖 Creating AI agents...")
+        try:
+            if llm is None:
+                interviewer = create_interviewer_agent()
+                reader = create_reading_summary()
+            else:
+                interviewer = create_interviewer_agent(llm=llm)
+                reader = create_reading_summary(llm=llm)
+            print("✅ Agents created successfully")
+        except Exception as e:
+            print(f"❌ Error creating agents: {e}")
+            return
 
-    pdf = input("Optional: path to a reading PDF to summarize (press Enter to use example_reading.pdf or provide your own): ").strip()
-    if not pdf:
-        pdf = os.path.join(os.path.dirname(__file__), "example_reading.pdf")
-    excel = None
-    if pdf:
-        excel = input("Optional: excel output path (default: reading_summary.xlsx): ").strip() or "reading_summary.xlsx"
+        # Prepare tasks
+        print("\n📋 Preparing tasks...")
+        tasks = [create_interview_task(interviewer, cv_text, job_description)]
+        
+        if summarize_pdf:
+            tasks.append(create_reading_summary_task(reader, pdf_path, excel_path, interests=INTERESTS))
+            print("✅ Interview preparation + PDF summarization tasks ready")
+        else:
+            print("✅ Interview preparation task ready")
 
-    # Create agents and tasks
-    print("\nCreating agents...")
-    if llm is None:
-        interviewer = create_interviewer_agent()
-        reader = create_reading_summary()
-    else:
-        interviewer = create_interviewer_agent(llm=llm)
-        reader = create_reading_summary(llm=llm)
+        # Create and run crew
+        print("\n🚀 Launching AI crew...")
+        try:
+            crew = Crew(
+                agents=[interviewer, reader] if summarize_pdf else [interviewer],
+                tasks=tasks,
+                process=Process.sequential,
+                verbose=True,
+            )
 
-    print("Preparing tasks...")
-    tasks = [create_interview_task(interviewer, cv_text, job_description)]
-    if pdf:
-        tasks.append(create_reading_summary_task(reader, pdf, excel, interests=INTERESTS))
+            print("🏃‍♀️ Running crew...")
+            result = crew.kickoff()
 
-    print("Launching crew...")
-    crew = Crew(
-        agents=[interviewer, reader],
-        tasks=tasks,
-        processor=Process.sequential,
-        verbose=True,
-    )
+            print("\n" + "="*50)
+            print("🎉 CREW EXECUTION COMPLETED!")
+            print("="*50)
+            print(f"\n📊 Results:\n{result}")
+            
+            # Convert summary to Excel if PDF summarization was requested
+            if summarize_pdf and excel_path:
+                print(f"\n📝 Converting summary to Excel: {excel_path}")
+                if save_summary_to_excel(str(result), excel_path):
+                    print(f"✅ Excel file created successfully: {excel_path}")
+                else:
+                    print(f"❌ Failed to create Excel file: {excel_path}")
+            
+        except Exception as e:
+            print(f"❌ Error running crew: {e}")
+            return
 
-    print("Running crew...")
-    result = crew.kickoff()
-
-    print("\nCrew finished. Result:\n")
-    print(result)
+    except KeyboardInterrupt:
+        print("\n\n👋 Operation cancelled by user. Goodbye!")
+    except Exception as e:
+        print(f"\n❌ Unexpected error: {e}")
+        print("Please check your setup and try again.")
 
 
 if __name__ == "__main__":
