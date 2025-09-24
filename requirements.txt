@@ -2,6 +2,6 @@ crewai==0.28.8
 crewai[tools]==0.28.8
 python-dotenv==1.0.0
 langchain-google-genai
+pypdf
 pandas
 openpyxl
-pypdf

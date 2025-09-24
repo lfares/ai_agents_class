@@ -1,41 +1,16 @@
 from dotenv import load_dotenv
 
-# Reads the .env file and loads the variables into the environment
+# Load environment variables
 load_dotenv()
 
 from crewai import Agent, Task, Crew, Process
 from langchain_community.chat_models import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
-from crewai_tools import FileReadTool, PDFSearchTool
+from crewai_tools import FileReadTool
 import os
 import json
 import sys
-import pandas as pd
 from pathlib import Path
-from langchain_core.tools import tool
-from typing import List, Dict, Any, Optional
-
-# Excel writing function
-def write_excel_file(data: List[Dict[str, Any]], file_path: str, columns: Optional[List[str]] = None) -> str:
-    """Write data to Excel file"""
-    try:
-        df = pd.DataFrame(data, columns=columns)
-        df.to_excel(file_path, index=False)
-        return f"Successfully wrote data to {file_path}"
-    except Exception as e:
-        return f"Error writing to Excel: {str(e)}"
-
-# Create a simple tool wrapper
-@tool
-def excel_writer_tool(data: str, file_path: str) -> str:
-    """Write data to an Excel file. Data should be a JSON string of list of dictionaries."""
-    try:
-        import json
-        data_list = json.loads(data)
-        return write_excel_file(data_list, file_path)
-    except Exception as e:
-        return f"Error: {str(e)}"
-
 
 # File validation functions
 def validate_file_path(file_path, file_type="file"):
@@ -70,21 +45,6 @@ def get_user_input(prompt, default=None, required=False):
             print(f"Error reading input: {e}")
             continue
 
-def save_summary_to_excel(summary_text, excel_path):
-    """Convert structured summary text to Excel file"""
-    try:
-        # Create a simple Excel file with the summary
-        data = {
-            'Section': ['Summary'],
-            'Content': [summary_text]
-        }
-        df = pd.DataFrame(data)
-        df.to_excel(excel_path, index=False)
-        return True
-    except Exception as e:
-        print(f"Error creating Excel file: {e}")
-        return False
-
 # Agent factories
 def create_interviewer_agent(llm=None):
     cfg = dict(
@@ -98,8 +58,7 @@ def create_interviewer_agent(llm=None):
         cfg["llm"] = llm
     return Agent(**cfg)
 
-
-def create_reading_summary(llm=None):
+def create_reading_summary_agent(llm=None):
     cfg = dict(
         role="Reading Summarizer",
         goal="Read a pdf file (e.g. an article or book chapter) and generate an excel file with what Livia would find relevant and a summary of the key concepts.",
@@ -113,7 +72,7 @@ def create_reading_summary(llm=None):
     return Agent(**cfg)
 
 def create_interview_task(agent, cv, job_description):
-    # Define the task for the interview helper agent
+    """Create interview preparation task"""
     return Task(
         description=f"""Help Livia prepare for a job interview based on her CV and the job description. You should generate a list of potential interview questions and answers that Livia can use to practice. Focus on the most relevant skills and experiences from her CV that match the job description. Give concise and clear answers that Livia can easily remember, and tips to help her prepare and feel calm at the day. Remember that the answers should be in Livia's voice, so they should sound natural and polite.
         Use the following information:
@@ -126,26 +85,87 @@ def create_interview_task(agent, cv, job_description):
         agent=agent,
     )
 
-
-def create_reading_summary_task(agent, pdf_path, excel_path, interests):
-    # Extract PDF text and provide it to the agent
+def convert_pdf_to_text(pdf_path):
+    """Convert PDF to text using pypdf"""
     try:
         import pypdf
         with open(pdf_path, 'rb') as file:
             pdf_reader = pypdf.PdfReader(file)
             pdf_text = ""
-            for page_num in range(len(pdf_reader.pages)):
-                page = pdf_reader.pages[page_num]
+            for page in pdf_reader.pages:
                 pdf_text += page.extract_text() + "\n"
+        return pdf_text
     except Exception as e:
-        pdf_text = f"Error reading PDF: {str(e)}"
+        return f"Error reading PDF: {str(e)}"
+
+def create_excel_from_summary(summary_text, excel_path, pdf_name):
+    """Create Excel file from agent summary"""
+    try:
+        import pandas as pd
+        
+        lines = summary_text.split('\n')
+        key_concepts = []
+        relevance = []
+        
+        # Parse summary text for key concepts and relevance
+        for line in lines:
+            line = line.strip()
+            if line and not line.startswith(('#', '*')):
+                if len(line) > 10:  # Skip very short lines
+                    if 'concept' in line.lower() or 'definition' in line.lower():
+                        key_concepts.append(line)
+                    elif 'relevant' in line.lower() or 'interest' in line.lower():
+                        relevance.append(line)
+        
+        # Fallback if no specific sections found
+        if not key_concepts:
+            key_concepts = [summary_text[:500] + "..." if len(summary_text) > 500 else summary_text]
+        if not relevance:
+            relevance = ["Relevant to Livia's interests in AI and education"]
+        
+        # Create DataFrame and save to Excel
+        data = {
+            'Name': [pdf_name],
+            'Key concepts & Definitions': [' '.join(key_concepts[:3])],
+            'Relevance & Curiosity': [' '.join(relevance[:2])]
+        }
+        
+        df = pd.DataFrame(data)
+        df.to_excel(excel_path, index=False)
+        return True
+        
+    except Exception as e:
+        print(f"Error creating Excel file: {e}")
+        return False
+
+def create_reading_summary_task(agent, pdf_path, excel_path, interests):
+    """Create reading summarization task"""
+    # Convert PDF to text first
+    pdf_text = convert_pdf_to_text(pdf_path)
     
-    # Define the task for the reading summarizer agent
-    return Task(
-        description=f"""Read the pdf file located at {pdf_path}. It contains an article or book chapter about a subject within education. Then, generate an excel file at {excel_path} with a summary of the key concepts and what Livia would find relevant. Write like Livia would - natural and informal. Livia is interested in the following topics: {interests}. Use this information to determine what she would find relevant in the context of the reading.
+    # Create a temporary text file with the PDF content
+    temp_txt_path = pdf_path.replace('.pdf', '_temp.txt')
+    try:
+        with open(temp_txt_path, 'w', encoding='utf-8') as f:
+            f.write(pdf_text)
+    except Exception as e:
+        print(f"Warning: Could not create temp text file: {e}")
+        temp_txt_path = None
+    
+    # Create task description based on available options
+    if temp_txt_path:
+        task_description = f"""Read the text file located at {temp_txt_path}. It contains the content of a PDF article or book chapter about a subject within education. Then, generate an excel file at {excel_path} with a summary of the key concepts and what Livia would find relevant. Write like Livia would - natural and informal. Livia is interested in the following topics: {interests}. Use this information to determine what she would find relevant in the context of the reading.
+
+IMPORTANT: Use the FileReadTool to read the text file at: {temp_txt_path}"""
+    else:
+        # Fallback: provide the text directly in the task description
+        task_description = f"""Analyze the following text content from a PDF article or book chapter about a subject within education. Generate an excel file at {excel_path} with a summary of the key concepts and what Livia would find relevant. Write like Livia would - natural and informal. Livia is interested in the following topics: {interests}. Use this information to determine what she would find relevant in the context of the reading.
 
 PDF Content:
-{pdf_text[:3000]}{'...' if len(pdf_text) > 3000 else ''}""",
+{pdf_text[:5000]}{'...' if len(pdf_text) > 5000 else ''}"""
+    
+    return Task(
+        description=task_description,
         expected_output=f"""An excel file located at {excel_path} with the following columns:
         1) Name - name of the reading
         2) Key concepts & Definitions - summary of the key concepts and its corresponding definitions, as Livia would write them - informal and natural
@@ -165,10 +185,8 @@ INTERESTS = [
     "soft skill development",
 ]
 
-
 def main():
-    """Enhanced runner for AI agents with better user interaction and error handling."""
-    
+    """Main function to run the AI Agent Assistant"""
     print("🤖 Welcome to Livia's AI Agent Assistant!")
     print("=" * 50)
     
@@ -203,7 +221,6 @@ def main():
                 print(f"✅ OpenAI configured with model: {openai_model}")
 
         # Load CV data
-        print("\n📄 Loading CV data...")
         cv_path = os.path.join(os.path.dirname(__file__), "cv.json")
         is_valid, message = validate_file_path(cv_path, "CV file")
         if not is_valid:
@@ -214,7 +231,6 @@ def main():
             with open(cv_path, "r", encoding="utf-8") as f:
                 cv_data = json.load(f)
                 cv_text = json.dumps(cv_data, indent=2, ensure_ascii=False)
-            print("✅ CV data loaded successfully")
         except Exception as e:
             print(f"❌ Error loading CV: {e}")
             return
@@ -226,7 +242,6 @@ def main():
             "Enter the job description (or press Enter for default example)",
             default="Researcher position focused on AI in education with emphasis on marginalized communities and learning design"
         )
-        print(f"✅ Job description: {job_description[:50]}...")
 
         # Ask about PDF summarization
         print("\n📚 Reading Summarization")
@@ -249,41 +264,41 @@ def main():
             is_valid, message = validate_file_path(pdf_path, "PDF file")
             if not is_valid:
                 print(f"❌ {message}")
-                print("Skipping PDF summarization...")
                 summarize_pdf = False
             else:
-                print("✅ PDF file validated")
                 excel_path = get_user_input(
                     "Enter Excel output path",
                     default="reading_summary.xlsx"
                 )
-                print(f"✅ Will create Excel file: {excel_path}")
 
         # Create agents and tasks
-        print("\n🤖 Creating AI agents...")
         try:
             if llm is None:
                 interviewer = create_interviewer_agent()
-                reader = create_reading_summary()
+                reader = create_reading_summary_agent()
             else:
                 interviewer = create_interviewer_agent(llm=llm)
-                reader = create_reading_summary(llm=llm)
-            print("✅ Agents created successfully")
+                reader = create_reading_summary_agent(llm=llm)
         except Exception as e:
             print(f"❌ Error creating agents: {e}")
             return
 
         # Prepare tasks
-        print("\n📋 Preparing tasks...")
         tasks = [create_interview_task(interviewer, cv_text, job_description)]
         
         if summarize_pdf:
             tasks.append(create_reading_summary_task(reader, pdf_path, excel_path, interests=INTERESTS))
+
+        # Create and run crew
+        print("\n🤖 Creating AI agents...")
+        print("✅ Agents created successfully")
+        
+        print("\n📋 Preparing tasks...")
+        if summarize_pdf:
             print("✅ Interview preparation + PDF summarization tasks ready")
         else:
             print("✅ Interview preparation task ready")
-
-        # Create and run crew
+        
         print("\n🚀 Launching AI crew...")
         try:
             crew = Crew(
@@ -296,15 +311,17 @@ def main():
             print("🏃‍♀️ Running crew...")
             result = crew.kickoff()
 
-            print("\n" + "="*50)
+            print("\n" + "="*60)
             print("🎉 CREW EXECUTION COMPLETED!")
-            print("="*50)
-            print(f"\n📊 Results:\n{result}")
+            print("="*60)
             
-            # Convert summary to Excel if PDF summarization was requested
             if summarize_pdf and excel_path:
-                print(f"\n📝 Converting summary to Excel: {excel_path}")
-                if save_summary_to_excel(str(result), excel_path):
+                # Create Excel file from the agent's summary
+                print("\n📊 Creating Excel file from summary...")
+                pdf_name = os.path.basename(pdf_path).replace('.pdf', '')
+                success = create_excel_from_summary(str(result), excel_path, pdf_name)
+                
+                if success and os.path.exists(excel_path):
                     print(f"✅ Excel file created successfully: {excel_path}")
                 else:
                     print(f"❌ Failed to create Excel file: {excel_path}")
@@ -318,7 +335,6 @@ def main():
     except Exception as e:
         print(f"\n❌ Unexpected error: {e}")
         print("Please check your setup and try again.")
-
 
 if __name__ == "__main__":
     main()
