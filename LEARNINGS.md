@@ -4,11 +4,13 @@
 
 - Fully ran the `crewai` library end-to-end: created agents, tasks, and a Crew that executes the workflow.
 - Created a local Python virtual environment and installed all required dependencies.
+- Agents are working as expected
 
 ## What didn't work
 
 - Attempting to run and install dependencies in the original execution environment failed due to an older system Python (3.9) and missing Homebrew/python installers in that environment.
 - The `FileWriterTool` from the example did not seem to exist anymore in the `crewai_tools`, so I had to go for a new direction on my agent/task
+- Using Copilot to solve issues
 
 ## What I learned
 
@@ -16,9 +18,11 @@
 - When pip reports "resolution-too-deep" or similar dependency resolver issues, upgrading pip (python -m pip install --upgrade pip) and re-running installs resolved it.
  - How to create agents and tools with `crewai`: supply `role`, `goal`, `backstory`, and use `tools=[...]` for file/IO helpers.
  - How to manage API keys: keep secrets in `.env`, load them with `python-dotenv` (`load_dotenv()`), and read them via `os.environ.get()`.
+ - Cursor >>> Copilot (Cursor was able to work around the Gemini issue with CrewAI and to create the auxiliar functions to fix file issues)
 
 ## AI use
 
 - Creation of json file from original CV, explaining the format and mentioning that it would be used for an interviewer agent
 - Creation of README (with various adaptations)
 - Creation of main function (with many manual and automated fixes)
+- Creation of auxiliar functions to translate PDF files into txt that the agent's tool can understand and to create the excel file
