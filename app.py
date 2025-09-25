@@ -9,6 +9,7 @@ import tempfile
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify, send_file
 from werkzeug.utils import secure_filename
+from crewai import Task
 
 # Import our existing agent functions
 from main import (
@@ -56,6 +57,7 @@ def get_llm_config():
         return ChatOpenAI(model_name=openai_model, openai_api_key=openai_key)
     
     return None
+
 
 @app.route('/')
 def index():
