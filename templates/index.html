@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent Assistant - Livia's Platform</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-robot"></i> AI Agent Assistant</h1>
+                <p>Powered by CrewAI • Interview Prep & PDF Summarization</p>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Agent Selection -->
+            <div class="agent-selection">
+                <div class="agent-card" id="interview-card">
+                    <div class="agent-icon">
+                        <i class="fas fa-user-tie"></i>
+                    </div>
+                    <h3>Interview Helper</h3>
+                    <p>Prepare for job interviews with personalized Q&A</p>
+                    <button class="btn btn-primary" onclick="showInterviewForm()">
+                        <i class="fas fa-play"></i> Start Interview Prep
+                    </button>
+                </div>
+
+                <div class="agent-card" id="reading-card">
+                    <div class="agent-icon">
+                        <i class="fas fa-book-open"></i>
+                    </div>
+                    <h3>Reading Summarizer</h3>
+                    <p>Summarize PDF readings and create Excel reports</p>
+                    <button class="btn btn-secondary" onclick="showReadingForm()">
+                        <i class="fas fa-upload"></i> Upload PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Interview Form -->
+            <div class="form-container" id="interview-form" style="display: none;">
+                <div class="form-header">
+                    <h2><i class="fas fa-user-tie"></i> Interview Preparation</h2>
+                    <button class="btn btn-close" onclick="hideForms()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <form id="interviewForm">
+                    <div class="form-group">
+                        <label for="cvText">
+                            <i class="fas fa-file-alt"></i> CV Information
+                        </label>
+                        <textarea 
+                            id="cvText" 
+                            name="cv_text" 
+                            placeholder="Paste your CV information here or upload a JSON file..."
+                            rows="8"
+                            required
+                        ></textarea>
+                        <div class="file-upload">
+                            <input type="file" id="cvFile" accept=".json" onchange="loadCVFile()">
+                            <label for="cvFile" class="file-label">
+                                <i class="fas fa-upload"></i> Upload CV JSON
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="jobDescription">
+                            <i class="fas fa-briefcase"></i> Job Description
+                        </label>
+                        <textarea 
+                            id="jobDescription" 
+                            name="job_description" 
+                            placeholder="Enter the job description you're applying for..."
+                            rows="6"
+                            required
+                        ></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary btn-large">
+                            <i class="fas fa-magic"></i> Generate Interview Prep
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="hideForms()">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Reading Form -->
+            <div class="form-container" id="reading-form" style="display: none;">
+                <div class="form-header">
+                    <h2><i class="fas fa-book-open"></i> PDF Summarization</h2>
+                    <button class="btn btn-close" onclick="hideForms()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <form id="readingForm" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="pdfFile">
+                            <i class="fas fa-file-pdf"></i> PDF File
+                        </label>
+                        <div class="file-upload-large">
+                            <input type="file" id="pdfFile" name="pdf_file" accept=".pdf" required>
+                            <label for="pdfFile" class="file-label-large">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <span>Click to upload PDF or drag and drop</span>
+                                <small>Maximum file size: 16MB</small>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="interests-info">
+                        <h4><i class="fas fa-heart"></i> Focus Areas</h4>
+                        <div class="interests-tags">
+                            <span class="tag">AI in Education</span>
+                            <span class="tag">Marginalized Communities</span>
+                            <span class="tag">EdTech</span>
+                            <span class="tag">Learning Design</span>
+                            <span class="tag">Career Readiness</span>
+                            <span class="tag">K-12</span>
+                            <span class="tag">Soft Skills</span>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-secondary btn-large">
+                            <i class="fas fa-magic"></i> Summarize PDF
+                        </button>
+                        <button type="button" class="btn btn-outline" onclick="hideForms()">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-container" id="results" style="display: none;">
+                <div class="results-header">
+                    <h2><i class="fas fa-check-circle"></i> Results</h2>
+                    <button class="btn btn-close" onclick="hideResults()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="results-content">
+                    <div class="loading" id="loading" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>AI agents are working...</p>
+                    </div>
+                    
+                    <div class="result-text" id="resultText"></div>
+                    
+                    <div class="download-section" id="downloadSection" style="display: none;">
+                        <a href="#" id="downloadLink" class="btn btn-success">
+                            <i class="fas fa-download"></i> Download Excel File
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2024 AI Agent Assistant • Built with CrewAI & Flask</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

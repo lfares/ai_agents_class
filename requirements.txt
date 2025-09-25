@@ -5,3 +5,5 @@ langchain-google-genai
 pypdf
 pandas
 openpyxl
+flask
+werkzeug
