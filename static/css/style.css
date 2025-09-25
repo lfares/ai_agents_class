@@ -644,3 +644,56 @@ body {
         text-align: center;
     }
 }
+
+/* Enhanced header description */
+.header-description {
+    max-width: 600px;
+    margin: 20px auto 0;
+    padding: 0 20px;
+}
+
+.header-description p {
+    font-size: 1rem;
+    color: #4a5568;
+    line-height: 1.6;
+    opacity: 0.9;
+}
+
+/* Agent description styles */
+.agent-description {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #4a5568;
+    margin-bottom: 15px;
+    text-align: left;
+}
+
+/* Feature tags */
+.agent-features {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+    justify-content: center;
+}
+
+.feature-tag {
+    background: rgba(102, 126, 234, 0.1);
+    color: #667eea;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: 1px solid rgba(102, 126, 234, 0.2);
+}
+
+/* Mobile adjustments for new elements */
+@media (max-width: 768px) {
+    .header-description {
+        padding: 0 10px;
+    }
+    
+    .agent-features {
+        justify-content: flex-start;
+    }
+}
