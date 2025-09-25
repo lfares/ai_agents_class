@@ -225,7 +225,7 @@ def pdf_summarization():
         
         # Check if we're in demo mode
         if llm is None:
-            # Demo mode - create Excel file directly
+            # Demo mode - create Excel file directly and return structured data
             try:
                 import pandas as pd
                 data = {
@@ -236,11 +236,25 @@ def pdf_summarization():
                 df = pd.DataFrame(data)
                 df.to_excel(excel_path, index=False)
                 
+                # Return structured data for the platform to display
                 return jsonify({
                     'success': True,
                     'result': 'Demo mode: Excel file created with sample data',
                     'excel_file': excel_filename,
-                    'demo_mode': True
+                    'demo_mode': True,
+                    'structured_data': {
+                        'title': 'The Future of AI in Education',
+                        'key_concepts': [
+                            'Artificial Intelligence in Education (AIEd) - The use of AI technologies to enhance learning experiences',
+                            'Personalized Learning - Tailoring educational content to individual student needs',
+                            'Learning Analytics - The measurement and analysis of learning data to improve outcomes'
+                        ],
+                        'relevance': [
+                            'Directly relevant to Livia\'s interests in leveraging AI for educational equity',
+                            'Connects to her work with marginalized communities and learning design',
+                            'Provides insights into career readiness and K-12 education applications'
+                        ]
+                    }
                 })
             except Exception as e:
                 return jsonify({
@@ -298,4 +312,4 @@ def health_check():
     return jsonify({'status': 'healthy', 'message': 'AI Agent Assistant is running'})
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    app.run(debug=True, host='0.0.0.0', port=5002)

@@ -196,7 +196,12 @@ async function handleReadingSubmit(event) {
         const result = await response.json();
         
         if (result.success) {
-            displayResult(result.result);
+            // Check if we have structured data (demo mode)
+            if (result.structured_data) {
+                displayStructuredResult(result.structured_data);
+            } else {
+                displayResult(result.result);
+            }
             
             // Show download link if Excel file was created
             if (result.excel_file) {
@@ -222,6 +227,46 @@ function displayResult(result) {
         resultText.innerHTML = formatReadingResult(result);
     } else {
         resultText.innerHTML = formatResult(result);
+    }
+    
+    hideLoading();
+}
+
+// Display structured result (for demo mode)
+function displayStructuredResult(data) {
+    const resultText = document.getElementById('resultText');
+    
+    if (currentForm === 'reading') {
+        // Create a beautiful table for the reading summary
+        resultText.innerHTML = `
+            <div class="reading-summary-table">
+                <h3><i class="fas fa-book"></i> ${data.title}</h3>
+                <div class="demo-mode-notice">
+                    <i class="fas fa-info-circle"></i> Demo Mode - Sample data
+                </div>
+                <table class="summary-table">
+                    <thead>
+                        <tr>
+                            <th><i class="fas fa-lightbulb"></i> Key Concepts & Definitions</th>
+                            <th><i class="fas fa-heart"></i> Relevance & Curiosity</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="concepts-cell">
+                                ${data.key_concepts.map(concept => `<div class="concept-item">• ${concept}</div>`).join('')}
+                            </td>
+                            <td class="relevance-cell">
+                                ${data.relevance.map(rel => `<div class="relevance-item">• ${rel}</div>`).join('')}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        `;
+    } else {
+        // For interview results, use the regular formatting
+        resultText.innerHTML = formatResult(data);
     }
     
     hideLoading();
@@ -534,6 +579,69 @@ style.textContent = `
     
     .error-message i {
         margin-right: 8px;
+    }
+    
+    .demo-mode-notice {
+        background: #e6fffa;
+        color: #234e52;
+        padding: 10px 15px;
+        border-radius: 6px;
+        border-left: 4px solid #38b2ac;
+        margin: 15px 0;
+        font-size: 14px;
+        font-weight: 500;
+    }
+    
+    .demo-mode-notice i {
+        margin-right: 8px;
+        color: #38b2ac;
+    }
+    
+    .reading-summary-table {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin: 20px 0;
+    }
+    
+    .reading-summary-table h3 {
+        color: #2d3748;
+        margin-bottom: 20px;
+        font-size: 24px;
+        font-weight: 600;
+    }
+    
+    .summary-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+    
+    .summary-table th {
+        background: #f7fafc;
+        color: #4a5568;
+        padding: 15px;
+        text-align: left;
+        font-weight: 600;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .summary-table td {
+        padding: 20px;
+        border: 1px solid #e2e8f0;
+        vertical-align: top;
+    }
+    
+    .concept-item, .relevance-item {
+        margin-bottom: 12px;
+        padding: 8px 0;
+        line-height: 1.5;
+        color: #2d3748;
+    }
+    
+    .concept-item:last-child, .relevance-item:last-child {
+        margin-bottom: 0;
     }
 `;
 document.head.appendChild(style);
