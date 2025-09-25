@@ -87,27 +87,29 @@ class MockLLM:
         return AIMessage(content="I'm a mock LLM for testing purposes. Please provide more specific instructions.")
 
 def get_llm_config():
-    """Get LLM configuration from environment"""
-    llm_type = os.environ.get("LLM_TYPE", "default").lower()
-    
-    if llm_type == "default":
-        # Use no LLM - demo mode
-        return None
-    
-    elif llm_type == "gemini":
-        gemini_model = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
-        gemini_key = os.environ.get("GEMINI_API_KEY")
-        if gemini_key:
+    """Get LLM configuration with fallback logic"""
+    # First try Gemini
+    gemini_model = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
+    gemini_key = os.environ.get("GEMINI_API_KEY")
+    if gemini_key:
+        try:
             os.environ["GOOGLE_API_KEY"] = gemini_key
             return f"gemini/{gemini_model}"
+        except Exception as e:
+            print(f"Gemini failed: {e}, falling back to demo mode")
     
-    elif llm_type == "openai":
-        openai_model = os.environ.get("OPENAI_MODEL", "gpt-3.5-turbo")
-        openai_key = os.environ.get("OPENAI_API_KEY")
-        if openai_key:
+    # If Gemini fails, try OpenAI
+    openai_model = os.environ.get("OPENAI_MODEL", "gpt-3.5-turbo")
+    openai_key = os.environ.get("OPENAI_API_KEY")
+    if openai_key:
+        try:
             from langchain_community.chat_models import ChatOpenAI
             return ChatOpenAI(model_name=openai_model, openai_api_key=openai_key)
+        except Exception as e:
+            print(f"OpenAI failed: {e}, falling back to demo mode")
     
+    # Fallback to demo mode
+    print("Using demo mode - no API keys available")
     return None
 
 
@@ -142,12 +144,41 @@ def interview_preparation():
             verbose=False
         )
         
-        result = crew.kickoff()
-        
-        return jsonify({
-            'success': True,
-            'result': str(result)
-        })
+        # Check if we're in demo mode
+        if llm is None:
+            # Demo mode - return sample interview preparation
+            demo_result = """# Interview Preparation
+
+## Potential Questions:
+1. Tell me about yourself and your experience with AI in education.
+2. How would you approach designing learning experiences for marginalized communities?
+3. Describe a time when you had to adapt your teaching methods for different learning styles.
+
+## Answers (STAR Method):
+1. **Situation**: In my previous role, I worked on developing AI-powered educational tools.
+**Task**: I needed to create accessible learning platforms for underserved communities.
+**Action**: I collaborated with community leaders and educators to understand their specific needs.
+**Result**: Successfully launched a program that increased engagement by 40%.
+
+## Tips for Confidence:
+- Practice your answers out loud
+- Prepare specific examples from your experience
+- Research the company's mission and values
+- Prepare thoughtful questions to ask them"""
+            
+            return jsonify({
+                'success': True,
+                'result': demo_result,
+                'demo_mode': True
+            })
+        else:
+            # Normal mode - run crew
+            result = crew.kickoff()
+            
+            return jsonify({
+                'success': True,
+                'result': str(result)
+            })
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -192,22 +223,48 @@ def pdf_summarization():
             verbose=False
         )
         
-        result = crew.kickoff()
-        
-        # Check if Excel file was created by the agent
-        if os.path.exists(excel_path):
-            return jsonify({
-                'success': True,
-                'result': str(result),
-                'excel_file': excel_filename
-            })
+        # Check if we're in demo mode
+        if llm is None:
+            # Demo mode - create Excel file directly
+            try:
+                import pandas as pd
+                data = {
+                    'Name': ['The Future of AI in Education'],
+                    'Key concepts & Definitions': ['• Artificial Intelligence in Education (AIEd) - The use of AI technologies to enhance learning experiences\n• Personalized Learning - Tailoring educational content to individual student needs\n• Learning Analytics - The measurement and analysis of learning data to improve outcomes'],
+                    'Relevance & Curiosity': ['• Directly relevant to Livia\'s interests in leveraging AI for educational equity\n• Connects to her work with marginalized communities and learning design\n• Provides insights into career readiness and K-12 education applications']
+                }
+                df = pd.DataFrame(data)
+                df.to_excel(excel_path, index=False)
+                
+                return jsonify({
+                    'success': True,
+                    'result': 'Demo mode: Excel file created with sample data',
+                    'excel_file': excel_filename,
+                    'demo_mode': True
+                })
+            except Exception as e:
+                return jsonify({
+                    'success': False,
+                    'error': f'Demo mode error: {str(e)}'
+                })
         else:
-            return jsonify({
-                'success': True,
-                'result': str(result),
-                'excel_file': None,
-                'message': 'Excel file was not created by the agent'
-            })
+            # Normal mode - run crew
+            result = crew.kickoff()
+            
+            # Check if Excel file was created by the agent
+            if os.path.exists(excel_path):
+                return jsonify({
+                    'success': True,
+                    'result': str(result),
+                    'excel_file': excel_filename
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'result': str(result),
+                    'excel_file': None,
+                    'message': 'Excel file was not created by the agent'
+                })
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
