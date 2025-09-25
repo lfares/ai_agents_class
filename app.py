@@ -172,6 +172,17 @@ def download_file(filename):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/cv')
+def get_cv():
+    """Get CV data from cv.json file"""
+    try:
+        cv_path = os.path.join(os.path.dirname(__file__), "cv.json")
+        with open(cv_path, "r", encoding="utf-8") as f:
+            cv_data = json.load(f)
+        return jsonify(cv_data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/health')
 def health_check():
     """Health check endpoint"""

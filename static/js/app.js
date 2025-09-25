@@ -3,6 +3,9 @@
 // Global variables
 let currentForm = null;
 
+// Default job description
+const DEFAULT_JOB_DESCRIPTION = "Researcher position focused on AI in education with emphasis on marginalized communities and learning design";
+
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
     console.log('AI Agent Assistant loaded successfully');
@@ -35,10 +38,36 @@ function showInterviewForm() {
     document.getElementById('interview-form').style.display = 'block';
     currentForm = 'interview';
     
-    // Add some sample CV data if empty
+    // Load actual CV data if empty
     const cvTextarea = document.getElementById('cvText');
     if (!cvTextarea.value.trim()) {
-        cvTextarea.value = `{
+        loadActualCV();
+    }
+}
+
+// Load actual CV data
+async function loadActualCV() {
+    try {
+        const response = await fetch('/api/cv');
+        if (response.ok) {
+            const cvData = await response.json();
+            const cvTextarea = document.getElementById('cvText');
+            cvTextarea.value = JSON.stringify(cvData, null, 2);
+            showNotification('Your CV data loaded successfully!', 'success');
+        } else {
+            // Fallback to sample data if CV endpoint fails
+            loadSampleCV();
+        }
+    } catch (error) {
+        console.log('CV endpoint not available, using sample data');
+        loadSampleCV();
+    }
+}
+
+// Load sample CV data as fallback
+function loadSampleCV() {
+    const cvTextarea = document.getElementById('cvText');
+    cvTextarea.value = `{
   "name": "Livia Fares",
   "title": "AI Education Researcher",
   "education": "MIT Graduate Student",
@@ -54,7 +83,7 @@ function showInterviewForm() {
     "Data Analysis"
   ]
 }`;
-    }
+    showNotification('Sample CV data loaded. Upload your own CV JSON file for personalized results.', 'info');
 }
 
 // Show reading form
@@ -311,6 +340,24 @@ function handleDrop(e) {
         } else {
             showNotification('Please select a PDF file.', 'error');
         }
+    }
+}
+
+// Use default job description
+function useDefaultJobDescription() {
+    const jobDescriptionTextarea = document.getElementById('jobDescription');
+    if (jobDescriptionTextarea) {
+        jobDescriptionTextarea.value = DEFAULT_JOB_DESCRIPTION;
+        showNotification('Default job description loaded!', 'success');
+    }
+}
+
+// Clear job description
+function clearJobDescription() {
+    const jobDescriptionTextarea = document.getElementById('jobDescription');
+    if (jobDescriptionTextarea) {
+        jobDescriptionTextarea.value = '';
+        showNotification('Job description cleared!', 'info');
     }
 }
 
