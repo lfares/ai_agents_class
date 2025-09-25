@@ -687,6 +687,84 @@ body {
     border: 1px solid rgba(102, 126, 234, 0.2);
 }
 
+/* Interview Preparation Styling */
+.interview-preparation {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    line-height: 1.6;
+}
+
+.interview-title {
+    color: #2d3748;
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 24px;
+    text-align: center;
+    border-bottom: 3px solid #667eea;
+    padding-bottom: 12px;
+}
+
+.interview-section {
+    color: #4a5568;
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin: 32px 0 16px 0;
+    padding-left: 16px;
+    border-left: 4px solid #667eea;
+}
+
+.interview-question {
+    color: #2d3748;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 24px 0 12px 0;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+}
+
+.interview-preparation p {
+    margin: 12px 0;
+    color: #4a5568;
+    font-size: 1rem;
+}
+
+.interview-preparation strong {
+    color: #2d3748;
+    font-weight: 600;
+}
+
+.interview-preparation em {
+    color: #667eea;
+    font-style: italic;
+}
+
+.interview-tips {
+    background: #f7fafc;
+    border-radius: 8px;
+    padding: 16px;
+    margin: 16px 0;
+    border-left: 4px solid #667eea;
+}
+
+.interview-tip {
+    color: #4a5568;
+    margin: 8px 0;
+    padding-left: 8px;
+    position: relative;
+}
+
+.interview-tip::before {
+    content: "💡";
+    position: absolute;
+    left: -20px;
+    top: 0;
+}
+
 /* Mobile adjustments for new elements */
 @media (max-width: 768px) {
     .header-description {
@@ -695,5 +773,18 @@ body {
     
     .agent-features {
         justify-content: flex-start;
+    }
+    
+    .interview-preparation {
+        padding: 16px;
+    }
+    
+    .interview-title {
+        font-size: 1.5rem;
+    }
+    
+    .interview-question {
+        font-size: 1rem;
+        padding: 10px 12px;
     }
 }

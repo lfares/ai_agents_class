@@ -284,14 +284,29 @@ function displayError(error) {
 
 // Format result text
 function formatResult(text) {
-    // Basic formatting for better readability
+    // Enhanced formatting for interview preparation
     let formatted = text
-        .replace(/\n\n/g, '</p><p>')
-        .replace(/\n/g, '<br>')
+        // Handle headers (### becomes h3, ## becomes h2, # becomes h1)
+        .replace(/^### (.*$)/gm, '<h3 class="interview-question">$1</h3>')
+        .replace(/^## (.*$)/gm, '<h2 class="interview-section">$1</h2>')
+        .replace(/^# (.*$)/gm, '<h1 class="interview-title">$1</h1>')
+        // Handle bold text
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.*?)\*/g, '<em>$1</em>');
+        // Handle italic text
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        // Handle bullet points
+        .replace(/^- (.*$)/gm, '<li class="interview-tip">$1</li>')
+        // Handle line breaks
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>');
     
-    return `<p>${formatted}</p>`;
+    // Wrap bullet points in ul tags
+    formatted = formatted.replace(/(<li class="interview-tip">.*<\/li>)/gs, '<ul class="interview-tips">$1</ul>');
+    
+    // Clean up any orphaned ul tags
+    formatted = formatted.replace(/<\/ul><ul class="interview-tips">/g, '');
+    
+    return `<div class="interview-preparation">${formatted}</div>`;
 }
 
 // Format reading result as a table
