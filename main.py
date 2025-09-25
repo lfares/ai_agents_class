@@ -7,10 +7,58 @@ from crewai import Agent, Task, Crew, Process
 from langchain_community.chat_models import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
 from crewai_tools import FileReadTool
+from langchain.schema import BaseMessage, HumanMessage, AIMessage
 import os
 import json
 import sys
 from pathlib import Path
+
+# Simple Mock LLM for testing
+class MockLLM:
+    def __init__(self):
+        self.model_name = "mock-llm"
+    
+    def invoke(self, messages, **kwargs):
+        # Simple mock response based on the task
+        if isinstance(messages, list) and len(messages) > 0:
+            content = str(messages[-1].content) if hasattr(messages[-1], 'content') else str(messages[-1])
+            
+            if "interview" in content.lower():
+                return AIMessage(content="""# Interview Preparation
+
+## Potential Questions:
+1. Tell me about yourself and your experience with AI in education.
+2. How would you approach designing learning experiences for marginalized communities?
+3. Describe a time when you had to adapt your teaching methods for different learning styles.
+
+## Answers (STAR Method):
+1. **Situation**: In my previous role, I worked on developing AI-powered educational tools.
+**Task**: I needed to create accessible learning platforms for underserved communities.
+**Action**: I collaborated with community leaders and educators to understand their specific needs.
+**Result**: Successfully launched a program that increased engagement by 40%.
+
+## Tips for Confidence:
+- Practice your answers out loud
+- Prepare specific examples from your experience
+- Research the company's mission and values
+- Prepare thoughtful questions to ask them""")
+            
+            elif "excel" in content.lower() or "pdf" in content.lower():
+                return AIMessage(content="""# Reading Summary
+
+**Title**: The Future of AI in Education
+
+**Key Concepts & Definitions**:
+• Artificial Intelligence in Education (AIEd) - The use of AI technologies to enhance learning experiences
+• Personalized Learning - Tailoring educational content to individual student needs
+• Learning Analytics - The measurement and analysis of learning data to improve outcomes
+
+**Relevance & Curiosity**:
+• Directly relevant to Livia's interests in leveraging AI for educational equity
+• Connects to her work with marginalized communities and learning design
+• Provides insights into career readiness and K-12 education applications""")
+        
+        return AIMessage(content="I'm a mock LLM for testing purposes. Please provide more specific instructions.")
 
 # File validation functions
 def validate_file_path(file_path, file_type="file"):
@@ -51,7 +99,7 @@ def create_interviewer_agent(llm=None):
         role="Interview Helper",
         goal="Help a candidate prepare to a job interview based on their CV and the job description.",
         backstory="You are helping Livia prepare for a job interview. You have access to her CV information and the job description. Use this information to generate relevant interview questions and answers. Talk like Livia would - natural, direct to the point but polite.",
-        verbose=True,
+        verbose=False,
         allow_delegation=False,
     )
     if llm is not None:
@@ -63,7 +111,7 @@ def create_reading_summary_agent(llm=None):
         role="Reading Summarizer",
         goal="Read a pdf file (e.g. an article or book chapter) and generate an excel file with what Livia would find relevant and a summary of the key concepts.",
         backstory="You are helping Livia summarize readings from her Graduate Education classes. You have access to the reading material in pdf format. Use this information to generate an excel file with what Livia would find relevant, given her interests, and a summary of the key concepts. Write like Livia would - natural and informal.",
-        verbose=True,
+        verbose=False,
         allow_delegation=False,
         tools=[FileReadTool()],
     )
@@ -81,7 +129,8 @@ def create_interview_task(agent, cv, job_description):
         expected_output=f"""A full preparation for the interview. Include the following:
         1) A list of potential questions
         2) Answers in Livia's voice following the STAR method
-        3) Tips for Livia to feel confident and prepared.""",
+        3) Tips for Livia to feel confident and prepared.
+        This should be formatted as a list of questions and answers in a structured format that is easy to read and understand, just like Livia, an organized person, would write it.""",
         agent=agent,
     )
 
@@ -138,6 +187,7 @@ def create_excel_from_summary(summary_text, excel_path, pdf_name):
         print(f"Error creating Excel file: {e}")
         return False
 
+
 def create_reading_summary_task(agent, pdf_path, excel_path, interests):
     """Create reading summarization task"""
     # Convert PDF to text first
@@ -166,11 +216,16 @@ PDF Content:
     
     return Task(
         description=task_description,
-        expected_output=f"""An excel file located at {excel_path} with the following columns:
-        1) Name - name of the reading
-        2) Key concepts & Definitions - summary of the key concepts and its corresponding definitions, as Livia would write them - informal and natural
-        3) Relevance & Curiosity - why this is relevant to Livia's interests
-        The row should be filled with the relevant information from the reading.""",
+        expected_output=f"""Create an Excel file at {excel_path} with exactly 2 rows:
+
+ROW 1 (Headers): Name | Key concepts & Definitions | Relevance & Curiosity
+
+ROW 2 (Content): 
+- Column 1 (Name): IMPORTANT - Read the PDF content and extract the actual article/chapter title from within the text. Do NOT use the filename. Look for titles like "Chapter 1: Introduction" or "The Future of AI in Education" etc.
+- Column 2 (Key concepts & Definitions): Key concepts and definitions in bullet points, written naturally like Livia would
+- Column 3 (Relevance & Curiosity): Why this is relevant to Livia's interests in AI, education, marginalized communities, etc., written naturally
+
+The Excel file should have 3 columns and 2 rows total. Focus on creating a clean, organized summary that Livia can quickly reference.""",
         agent=agent,
     )
 
@@ -191,17 +246,23 @@ def main():
     print("=" * 50)
     
     try:
-        # LLM configuration: support both OpenAI and Gemini
-        llm_type = os.environ.get("LLM_TYPE", "openai").lower()
+        # LLM configuration: support OpenAI, Gemini, and default
+        llm_type = os.environ.get("LLM_TYPE", "default").lower()
         print(f"🔧 Using LLM: {llm_type.upper()}")
         
-        if llm_type == "gemini":
+        if llm_type == "default":
+            # Use no LLM - just run the agents without AI
+            print("🔄 Running without LLM (demo mode)...")
+            llm = None
+            print("✅ Running in demo mode")
+        
+        elif llm_type == "gemini":
             # Configure Gemini LLM using LiteLLM format
             gemini_model = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
             gemini_key = os.environ.get("GEMINI_API_KEY")
             if not gemini_key:
-                print("⚠️  Warning: GEMINI_API_KEY not found. Falling back to OpenAI.")
-                llm_type = "openai"
+                print("⚠️  Warning: GEMINI_API_KEY not found. Falling back to Hugging Face.")
+                llm_type = "huggingface"
             else:
                 # Set the API key for Google
                 os.environ["GOOGLE_API_KEY"] = gemini_key
@@ -209,13 +270,13 @@ def main():
                 llm = f"gemini/{gemini_model}"
                 print(f"✅ Gemini configured with model: {gemini_model}")
         
-        if llm_type == "openai":
-            # Configure OpenAI LLM (default)
+        elif llm_type == "openai":
+            # Configure OpenAI LLM
             openai_model = os.environ.get("OPENAI_MODEL", "gpt-3.5-turbo")
             openai_key = os.environ.get("OPENAI_API_KEY")
             if not openai_key:
-                print("⚠️  Warning: OPENAI_API_KEY not found. Using default model without API key.")
-                llm = None
+                print("⚠️  Warning: OPENAI_API_KEY not found. Falling back to Hugging Face.")
+                llm_type = "huggingface"
             else:
                 llm = ChatOpenAI(model_name=openai_model, openai_api_key=openai_key)
                 print(f"✅ OpenAI configured with model: {openai_model}")
@@ -299,36 +360,80 @@ def main():
         else:
             print("✅ Interview preparation task ready")
         
-        print("\n🚀 Launching AI crew...")
-        try:
-            crew = Crew(
-                agents=[interviewer, reader] if summarize_pdf else [interviewer],
-                tasks=tasks,
-                process=Process.sequential,
-                verbose=True,
-            )
-
-            print("🏃‍♀️ Running crew...")
-            result = crew.kickoff()
-
-            print("\n" + "="*60)
-            print("🎉 CREW EXECUTION COMPLETED!")
+        if llm is None:
+            # Demo mode - show expected outputs without running crew
+            print("\n🚀 Running in DEMO MODE...")
+            print("="*60)
+            print("🎉 DEMO EXECUTION COMPLETED!")
             print("="*60)
             
-            if summarize_pdf and excel_path:
-                # Create Excel file from the agent's summary
-                print("\n📊 Creating Excel file from summary...")
-                pdf_name = os.path.basename(pdf_path).replace('.pdf', '')
-                success = create_excel_from_summary(str(result), excel_path, pdf_name)
-                
-                if success and os.path.exists(excel_path):
-                    print(f"✅ Excel file created successfully: {excel_path}")
-                else:
-                    print(f"❌ Failed to create Excel file: {excel_path}")
+            # Show demo interview results
+            print("\n📝 INTERVIEW PREPARATION RESULTS:")
+            print("-" * 40)
+            print("""
+# Interview Preparation
+
+## Potential Questions:
+1. Tell me about yourself and your experience with AI in education.
+2. How would you approach designing learning experiences for marginalized communities?
+3. Describe a time when you had to adapt your teaching methods for different learning styles.
+
+## Answers (STAR Method):
+1. **Situation**: In my previous role, I worked on developing AI-powered educational tools.
+**Task**: I needed to create accessible learning platforms for underserved communities.
+**Action**: I collaborated with community leaders and educators to understand their specific needs.
+**Result**: Successfully launched a program that increased engagement by 40%.
+
+## Tips for Confidence:
+- Practice your answers out loud
+- Prepare specific examples from your experience
+- Research the company's mission and values
+- Prepare thoughtful questions to ask them
+            """)
             
-        except Exception as e:
-            print(f"❌ Error running crew: {e}")
-            return
+            if summarize_pdf and excel_path:
+                # Create demo Excel file
+                print(f"\n📊 Creating demo Excel file: {excel_path}")
+                try:
+                    import pandas as pd
+                    data = {
+                        'Name': ['The Future of AI in Education'],
+                        'Key concepts & Definitions': ['• Artificial Intelligence in Education (AIEd) - The use of AI technologies to enhance learning experiences\n• Personalized Learning - Tailoring educational content to individual student needs\n• Learning Analytics - The measurement and analysis of learning data to improve outcomes'],
+                        'Relevance & Curiosity': ['• Directly relevant to Livia\'s interests in leveraging AI for educational equity\n• Connects to her work with marginalized communities and learning design\n• Provides insights into career readiness and K-12 education applications']
+                    }
+                    df = pd.DataFrame(data)
+                    df.to_excel(excel_path, index=False)
+                    print(f"✅ Demo Excel file created: {excel_path}")
+                except Exception as e:
+                    print(f"❌ Error creating demo Excel: {e}")
+        else:
+            print("\n🚀 Launching AI crew...")
+            try:
+                crew = Crew(
+                    agents=[interviewer, reader] if summarize_pdf else [interviewer],
+                    tasks=tasks,
+                    process=Process.sequential,
+                    verbose=True,
+                )
+
+                print("🏃‍♀️ Running crew...")
+                result = crew.kickoff()
+
+                print("\n" + "="*60)
+                print("🎉 CREW EXECUTION COMPLETED!")
+                print("="*60)
+                
+                if summarize_pdf and excel_path:
+                    # Check if Excel file was created by the agent
+                    if os.path.exists(excel_path):
+                        print(f"✅ Excel file created successfully by agent: {excel_path}")
+                    else:
+                        print(f"⚠️  Excel file not found at expected location: {excel_path}")
+                        print("The agent should have created the Excel file directly.")
+                
+            except Exception as e:
+                print(f"❌ Error running crew: {e}")
+                return
 
     except KeyboardInterrupt:
         print("\n\n👋 Operation cancelled by user. Goodbye!")

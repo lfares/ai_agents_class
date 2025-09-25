@@ -216,7 +216,14 @@ async function handleReadingSubmit(event) {
 // Display result
 function displayResult(result) {
     const resultText = document.getElementById('resultText');
-    resultText.innerHTML = formatResult(result);
+    
+    // Check if this is from the reading summarizer (PDF upload)
+    if (currentForm === 'reading') {
+        resultText.innerHTML = formatReadingResult(result);
+    } else {
+        resultText.innerHTML = formatResult(result);
+    }
+    
     hideLoading();
 }
 
@@ -240,6 +247,94 @@ function formatResult(text) {
         .replace(/\*(.*?)\*/g, '<em>$1</em>');
     
     return `<p>${formatted}</p>`;
+}
+
+// Format reading result as a table
+function formatReadingResult(text) {
+    // Try to parse the agent's response and extract structured information
+    const lines = text.split('\n').filter(line => line.trim());
+    
+    // Look for common patterns in the agent's response
+    let readingName = 'Reading Summary';
+    let keyConcepts = [];
+    let relevance = [];
+    let summary = [];
+    
+    // Parse the response to extract information
+    let currentSection = 'summary';
+    
+    for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
+        
+        // Detect sections
+        if (line.toLowerCase().includes('name') || line.toLowerCase().includes('title')) {
+            readingName = line.replace(/.*[:\-]\s*/i, '');
+        } else if (line.toLowerCase().includes('concept') || line.toLowerCase().includes('definition')) {
+            currentSection = 'concepts';
+            if (line.length > 20) keyConcepts.push(line);
+        } else if (line.toLowerCase().includes('relevant') || line.toLowerCase().includes('interest')) {
+            currentSection = 'relevance';
+            if (line.length > 20) relevance.push(line);
+        } else if (line.toLowerCase().includes('summary') || line.toLowerCase().includes('overview')) {
+            currentSection = 'summary';
+        } else {
+            // Add content to appropriate section
+            if (line.length > 10) {
+                if (currentSection === 'concepts') {
+                    keyConcepts.push(line);
+                } else if (currentSection === 'relevance') {
+                    relevance.push(line);
+                } else {
+                    summary.push(line);
+                }
+            }
+        }
+    }
+    
+    // If we didn't find structured content, use the whole text as summary
+    if (keyConcepts.length === 0 && relevance.length === 0) {
+        summary = lines.filter(line => line.trim().length > 10);
+    }
+    
+    // Create the table HTML
+    return `
+        <div class="reading-summary-table">
+            <h3><i class="fas fa-book"></i> ${readingName}</h3>
+            <table class="summary-table">
+                <thead>
+                    <tr>
+                        <th><i class="fas fa-lightbulb"></i> Key Concepts & Definitions</th>
+                        <th><i class="fas fa-heart"></i> Relevance & Curiosity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="concepts-cell">
+                            ${keyConcepts.length > 0 ? 
+                                keyConcepts.slice(0, 3).map(concept => `<div class="concept-item">${concept}</div>`).join('') :
+                                '<div class="concept-item">Key concepts will be extracted from the reading</div>'
+                            }
+                        </td>
+                        <td class="relevance-cell">
+                            ${relevance.length > 0 ? 
+                                relevance.slice(0, 2).map(rel => `<div class="relevance-item">${rel}</div>`).join('') :
+                                '<div class="relevance-item">Relevant to Livia\'s interests in AI and education</div>'
+                            }
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            ${summary.length > 0 ? `
+                <div class="summary-section">
+                    <h4><i class="fas fa-clipboard-list"></i> Summary</h4>
+                    <div class="summary-content">
+                        ${summary.slice(0, 5).map(line => `<p>${line}</p>`).join('')}
+                    </div>
+                </div>
+            ` : ''}
+        </div>
+    `;
 }
 
 // Show download link
