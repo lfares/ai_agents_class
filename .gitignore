@@ -37,3 +37,5 @@ coverage.xml
 # ven folder
 Ven312/
 venv312/
+.env
+venv312/
