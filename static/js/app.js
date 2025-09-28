@@ -311,6 +311,11 @@ function formatResult(text) {
 
 // Format reading result as a table
 function formatReadingResult(text) {
+    // Check if this is the pipe-separated format from the AI agent
+    if (text.includes('|') && text.includes('Key concepts & Definitions')) {
+        return formatPipeSeparatedResult(text);
+    }
+    
     // Try to parse the agent's response and extract structured information
     const lines = text.split('\n').filter(line => line.trim());
     
@@ -393,6 +398,89 @@ function formatReadingResult(text) {
                     </div>
                 </div>
             ` : ''}
+        </div>
+    `;
+}
+
+// Format pipe-separated result from AI agent
+function formatPipeSeparatedResult(text) {
+    // Remove markdown code block markers if present
+    let cleanText = text.replace(/```[\s\S]*?\n/, '').replace(/```$/, '').trim();
+    
+    const lines = cleanText.split('\n').filter(line => line.trim());
+    
+    // Find the data line (skip header line and separator line)
+    let dataLine = '';
+    for (let line of lines) {
+        if (line.includes('|') && 
+            !line.includes('Key concepts & Definitions') && 
+            !line.includes('-------') &&
+            !line.includes('--------')) {
+            dataLine = line;
+            break;
+        }
+    }
+    
+    if (!dataLine) {
+        return formatReadingResult(text); // Fallback to original parsing
+    }
+    
+    // Split by pipe and clean up
+    const parts = dataLine.split('|').map(part => part.trim());
+    
+    if (parts.length < 3) {
+        return formatReadingResult(text); // Fallback to original parsing
+    }
+    
+    const readingName = parts[0] || 'Reading Summary';
+    const keyConceptsText = parts[1] || '';
+    const relevanceText = parts[2] || '';
+    
+    // Parse key concepts (split by bullet points, dashes, or newlines)
+    const keyConcepts = keyConceptsText
+        .split(/\*|\n|(?<=\.)\s*-/)
+        .map(concept => concept.trim())
+        .filter(concept => concept.length > 0 && !concept.match(/^[-*]+$/))
+        .map(concept => concept.replace(/^[-*]?\s*/, '')); // Remove leading dashes/asterisks
+    
+    // Parse relevance (split by bullet points, dashes, or newlines)
+    const relevance = relevanceText
+        .split(/\*|\n|(?<=\.)\s*-/)
+        .map(rel => rel.trim())
+        .filter(rel => rel.length > 0 && !rel.match(/^[-*]+$/))
+        .map(rel => rel.replace(/^[-*]?\s*/, '')); // Remove leading dashes/asterisks
+    
+    // Create the beautiful table HTML
+    return `
+        <div class="reading-summary-table">
+            <h3><i class="fas fa-book"></i> ${readingName}</h3>
+            <div class="success-notice">
+                <i class="fas fa-check-circle"></i> PDF successfully analyzed and summarized
+            </div>
+            <table class="summary-table">
+                <thead>
+                    <tr>
+                        <th><i class="fas fa-lightbulb"></i> Key Concepts & Definitions</th>
+                        <th><i class="fas fa-heart"></i> Relevance & Curiosity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="concepts-cell">
+                            ${keyConcepts.length > 0 ? 
+                                keyConcepts.map(concept => `<div class="concept-item">• ${concept}</div>`).join('') :
+                                '<div class="concept-item">Key concepts will be extracted from the reading</div>'
+                            }
+                        </td>
+                        <td class="relevance-cell">
+                            ${relevance.length > 0 ? 
+                                relevance.map(rel => `<div class="relevance-item">• ${rel}</div>`).join('') :
+                                '<div class="relevance-item">Relevant to Livia\'s interests in AI and education</div>'
+                            }
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     `;
 }
