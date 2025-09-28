@@ -311,6 +311,11 @@ function formatResult(text) {
 
 // Format reading result as a table
 function formatReadingResult(text) {
+    // Check if this is the JSON format from the AI agent
+    if (text.includes('```json') && text.includes('article_title')) {
+        return formatJSONResult(text);
+    }
+    
     // Check if this is the pipe-separated format from the AI agent
     if (text.includes('|') && text.includes('Key concepts & Definitions')) {
         return formatPipeSeparatedResult(text);
@@ -394,6 +399,53 @@ function formatReadingResult(text) {
             </table>
         </div>
     `;
+}
+
+// Format JSON result from AI agent
+function formatJSONResult(text) {
+    try {
+        // Extract JSON from the text
+        const jsonMatch = text.match(/```json\s*(\{.*?\})\s*```/s);
+        if (!jsonMatch) {
+            return formatReadingResult(text); // Fallback
+        }
+        
+                const data = JSON.parse(jsonMatch[1]);
+                
+                // Handle key_concepts whether it's a string or array
+                let keyConcepts = data.key_concepts || 'No key concepts provided';
+                if (Array.isArray(keyConcepts)) {
+                    keyConcepts = keyConcepts.join('\n');
+                }
+                
+                // Create the table HTML
+                return `
+                    <div class="reading-summary-table">
+                        <h3><i class="fas fa-book"></i> ${data.article_title || 'Reading Summary'}</h3>
+                        <table class="summary-table">
+                            <thead>
+                                <tr>
+                                    <th><i class="fas fa-lightbulb"></i> Key Concepts & Definitions</th>
+                                    <th><i class="fas fa-heart"></i> Relevance & Curiosity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="concepts-cell">
+                                        <div class="concept-item">${keyConcepts}</div>
+                                    </td>
+                                    <td class="relevance-cell">
+                                        <div class="relevance-item">${data.relevance || 'No relevance information provided'}</div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+    } catch (error) {
+        console.error('Error parsing JSON result:', error);
+        return formatReadingResult(text); // Fallback
+    }
 }
 
 // Format pipe-separated result from AI agent

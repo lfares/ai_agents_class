@@ -186,40 +186,70 @@ def convert_pdf_to_text(pdf_path):
         return f"Error reading PDF: {str(e)}"
 
 def create_excel_from_summary(summary_text, excel_path, pdf_name):
-    """Create Excel file from agent summary"""
+    """Create Excel file from agent summary using standardized JSON format"""
     try:
         import pandas as pd
+        import json
+        import re
         
-        lines = summary_text.split('\n')
-        key_concepts = []
-        relevance = []
-        
-        # Parse summary text for key concepts and relevance
-        for line in lines:
-            line = line.strip()
-            if line and not line.startswith(('#', '*')):
-                if len(line) > 10:  # Skip very short lines
-                    if 'concept' in line.lower() or 'definition' in line.lower():
-                        key_concepts.append(line)
-                    elif 'relevant' in line.lower() or 'interest' in line.lower():
-                        relevance.append(line)
-        
-        # Fallback if no specific sections found
-        if not key_concepts:
-            key_concepts = [summary_text[:500] + "..." if len(summary_text) > 500 else summary_text]
-        if not relevance:
-            relevance = ["Relevant to Livia's interests in AI and education"]
-        
-        # Create DataFrame and save to Excel
-        data = {
-            'Name': [pdf_name],
-            'Key concepts & Definitions': [' '.join(key_concepts[:3])],
-            'Relevance & Curiosity': [' '.join(relevance[:2])]
-        }
-        
-        df = pd.DataFrame(data)
-        df.to_excel(excel_path, index=False)
-        return True
+        # Extract JSON from the summary text
+        json_match = re.search(r'```json\s*(\{.*?\})\s*```', summary_text, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(1)
+            try:
+                data = json.loads(json_str)
+                
+                # Handle key_concepts whether it's a string or array
+                key_concepts = data.get('key_concepts', 'No key concepts provided')
+                if isinstance(key_concepts, list):
+                    key_concepts = '\n'.join(key_concepts)
+                
+                # Create DataFrame with the parsed data
+                df = pd.DataFrame({
+                    'Name': [data.get('article_title', pdf_name)],
+                    'Key concepts & Definitions': [key_concepts],
+                    'Relevance & Curiosity': [data.get('relevance', 'No relevance information provided')]
+                })
+                
+                df.to_excel(excel_path, index=False)
+                return True
+                
+            except json.JSONDecodeError as e:
+                print(f"JSON parsing error: {e}")
+                return False
+        else:
+            # Fallback: try to parse as plain text (old format)
+            print("No JSON format found, falling back to text parsing")
+            lines = summary_text.split('\n')
+            key_concepts = []
+            relevance = []
+            
+            # Parse summary text for key concepts and relevance
+            for line in lines:
+                line = line.strip()
+                if line and not line.startswith(('#', '*')):
+                    if len(line) > 10:  # Skip very short lines
+                        if 'concept' in line.lower() or 'definition' in line.lower():
+                            key_concepts.append(line)
+                        elif 'relevant' in line.lower() or 'interest' in line.lower():
+                            relevance.append(line)
+            
+            # Fallback if no specific sections found
+            if not key_concepts:
+                key_concepts = [summary_text[:500] + "..." if len(summary_text) > 500 else summary_text]
+            if not relevance:
+                relevance = ["Relevant to Livia's interests in AI and education"]
+            
+            # Create DataFrame and save to Excel
+            data = {
+                'Name': [pdf_name],
+                'Key concepts & Definitions': [' '.join(key_concepts[:3])],
+                'Relevance & Curiosity': [' '.join(relevance[:2])]
+            }
+            
+            df = pd.DataFrame(data)
+            df.to_excel(excel_path, index=False)
+            return True
         
     except Exception as e:
         print(f"Error creating Excel file: {e}")
@@ -254,16 +284,23 @@ PDF Content:
     
     return Task(
         description=task_description,
-        expected_output=f"""Create an Excel file at {excel_path} with exactly 2 rows:
+        expected_output=f"""IMPORTANT: You must return your response in this EXACT format:
 
-ROW 1 (Headers): Name | Key concepts & Definitions | Relevance & Curiosity
+```json
+{{
+    "article_title": "Extract the actual article/chapter title from the PDF content (NOT the filename)",
+    "key_concepts": "Key concepts and definitions as a single string with bullet points, written naturally like Livia would",
+    "relevance": "Why this is relevant to Livia's interests in AI, education, marginalized communities, etc., written naturally"
+}}
+```
 
-ROW 2 (Content): 
-- Column 1 (Name): IMPORTANT - Read the PDF content and extract the actual article/chapter title from within the text. Do NOT use the filename. Look for titles like "Chapter 1: Introduction" or "The Future of AI in Education" etc.
-- Column 2 (Key concepts & Definitions): Key concepts and definitions in bullet points, written naturally like Livia would
-- Column 3 (Relevance & Curiosity): Why this is relevant to Livia's interests in AI, education, marginalized communities, etc., written naturally
-
-The Excel file should have 3 columns and 2 rows total. Focus on creating a clean, organized summary that Livia can quickly reference.""",
+CRITICAL REQUIREMENTS:
+1. Extract the actual article/chapter title from within the PDF content - look for titles like "Chapter 1: Introduction" or "The Future of AI in Education" etc.
+2. Write key concepts as a SINGLE STRING with bullet points (not an array), in a natural, conversational style
+3. Explain relevance to Livia's interests in AI, education, marginalized communities, etc.
+4. Return ONLY the JSON format above - no additional text or explanations
+5. The JSON must be valid and parseable
+6. key_concepts must be a STRING, not an array""",
         agent=agent,
     )
 

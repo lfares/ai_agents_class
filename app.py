@@ -303,8 +303,10 @@ def pdf_summarization():
             # Normal mode - run crew
             result = crew.kickoff()
             
-            # Check if Excel file was created by the agent
-            if os.path.exists(excel_path):
+            # Create Excel file from the agent's result
+            excel_created = create_excel_from_summary(str(result), excel_path, filename)
+            
+            if excel_created and os.path.exists(excel_path):
                 return jsonify({
                     'success': True,
                     'result': str(result),
@@ -315,7 +317,7 @@ def pdf_summarization():
                     'success': True,
                     'result': str(result),
                     'excel_file': None,
-                    'message': 'Excel file was not created by the agent'
+                    'message': 'Excel file could not be created from agent result'
                 })
         
     except Exception as e:
