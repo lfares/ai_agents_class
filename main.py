@@ -289,18 +289,19 @@ PDF Content:
 ```json
 {{
     "article_title": "Extract the actual article/chapter title from the PDF content (NOT the filename)",
-    "key_concepts": "Key concepts and definitions as a single string with bullet points, written naturally like Livia would",
-    "relevance": "Why this is relevant to Livia's interests in AI, education, marginalized communities, etc., written naturally"
+    "key_concepts": "ONLY bullet points with key concepts and definitions - no introductory text",
+    "relevance": "ONLY bullet points explaining relevance to Livia's interests - no introductory text"
 }}
 ```
 
 CRITICAL REQUIREMENTS:
 1. Extract the actual article/chapter title from within the PDF content - look for titles like "Chapter 1: Introduction" or "The Future of AI in Education" etc.
-2. Write key concepts as a SINGLE STRING with bullet points (not an array), in a natural, conversational style
-3. Explain relevance to Livia's interests in AI, education, marginalized communities, etc.
-4. Return ONLY the JSON format above - no additional text or explanations
-5. The JSON must be valid and parseable
-6. key_concepts must be a STRING, not an array""",
+2. key_concepts: Start directly with bullet points (• or *) - NO introductory phrases like "The main ideas are:" or "Key concepts include:"
+3. relevance: Start directly with bullet points (• or *) - NO introductory phrases like "This is relevant because:" or "Why this matters:"
+4. Each bullet point should be a complete, standalone statement
+5. Return ONLY the JSON format above - no additional text or explanations
+6. The JSON must be valid and parseable
+7. Both key_concepts and relevance must be STRINGS, not arrays""",
         agent=agent,
     )
 
