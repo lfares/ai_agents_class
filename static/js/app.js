@@ -378,7 +378,9 @@ function formatReadingResult(text) {
                         <td class="concepts-cell">
                             ${keyConcepts.length > 0 ? 
                                 keyConcepts.slice(0, 3).map(concept => `<div class="concept-item">${concept}</div>`).join('') :
-                                '<div class="concept-item">Key concepts will be extracted from the reading</div>'
+                                summary.length > 0 ?
+                                    summary.slice(0, 5).map(line => `<div class="concept-item">${line}</div>`).join('') :
+                                    '<div class="concept-item">Key concepts will be extracted from the reading</div>'
                             }
                         </td>
                         <td class="relevance-cell">
@@ -390,14 +392,6 @@ function formatReadingResult(text) {
                     </tr>
                 </tbody>
             </table>
-            ${summary.length > 0 ? `
-                <div class="summary-section">
-                    <h4><i class="fas fa-clipboard-list"></i> Summary</h4>
-                    <div class="summary-content">
-                        ${summary.slice(0, 5).map(line => `<p>${line}</p>`).join('')}
-                    </div>
-                </div>
-            ` : ''}
         </div>
     `;
 }
