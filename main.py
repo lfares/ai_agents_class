@@ -358,7 +358,7 @@ def main():
                 print(f"✅ OpenAI configured with model: {openai_model}")
 
         # Load CV data
-        cv_path = os.path.join(os.path.dirname(__file__), "cv.json")
+        cv_path = os.path.join(os.path.dirname(__file__), "resources", "cv.json")
         is_valid, message = validate_file_path(cv_path, "CV file")
         if not is_valid:
             print(f"❌ {message}")
@@ -394,7 +394,7 @@ def main():
         if summarize_pdf:
             pdf_path = get_user_input(
                 "Enter PDF file path",
-                default=os.path.join(os.path.dirname(__file__), "example_reading.pdf")
+                default=os.path.join(os.path.dirname(__file__), "resources", "example_reading.pdf")
             )
             
             # Validate PDF file

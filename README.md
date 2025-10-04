@@ -42,8 +42,8 @@ pip install -r requirements.txt
 ```
 
 ### 4. Prepare Your Files
-- **CV File**: Place your CV data in `cv.json` (JSON format)
-- **PDF File**: Place any PDF reading in `example_reading.pdf` (optional)
+- **CV File**: Place your CV data in `resources/cv.json` (JSON format)
+- **PDF File**: Place any PDF reading in `resources/example_reading.pdf` (optional)
 
 ### 5. Run the Application
 ```bash
@@ -63,7 +63,7 @@ python main.py
 ### PDF Summarization
 1. Run the application
 2. Choose "y" when asked about PDF summarization
-3. Provide the PDF file path (default: `example_reading.pdf`)
+3. Provide the PDF file path (default: `resources/example_reading.pdf`)
 4. Specify Excel output path (default: `reading_summary.xlsx`)
 5. The Reading Summarizer agent will:
    - Read and analyze the PDF content
@@ -89,10 +89,14 @@ The system focuses on these topics when summarizing readings:
 ## File Structure
 ```
 ├── main.py                 # Main application
+├── app.py                  # Flask web application
 ├── requirements.txt        # Python dependencies
-├── cv.json                # Your CV data (JSON format)
-├── example_reading.pdf    # Sample PDF for testing
-├── reading_summary.xlsx   # Generated Excel output
+├── resources/              # Resource files
+│   ├── cv.json            # Your CV data (JSON format)
+│   └── example_reading.pdf # Sample PDF for testing
+├── uploads/                # Uploaded files and generated outputs
+├── static/                 # Web application static files
+├── templates/              # Web application templates
 └── .env                   # API keys and configuration
 ```
 
