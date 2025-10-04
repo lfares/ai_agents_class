@@ -64,7 +64,7 @@ python main.py
 1. Run the application
 2. Choose "y" when asked about PDF summarization
 3. Provide the PDF file path (default: `resources/example_reading.pdf`)
-4. Specify Excel output path (default: `reading_summary.xlsx`)
+4. Specify Excel output path (default: `uploads/reading_summary.xlsx`)
 5. The Reading Summarizer agent will:
    - Read and analyze the PDF content
    - Extract key concepts relevant to your interests
@@ -95,6 +95,15 @@ The system focuses on these topics when summarizing readings:
 │   ├── cv.json            # Your CV data (JSON format)
 │   └── example_reading.pdf # Sample PDF for testing
 ├── uploads/                # Uploaded files and generated outputs
+│   └── reading_summary.xlsx # Generated Excel summaries
+├── docs/                   # Documentation
+│   ├── DEPLOYMENT.md      # Deployment instructions
+│   ├── LEARNINGS.md       # Project learnings
+│   └── WEB_SETUP.md       # Web setup guide
+├── config/                 # Configuration files
+│   ├── Procfile           # Heroku deployment config
+│   ├── runtime.txt        # Python runtime version
+│   └── .env.example       # Environment variables template
 ├── static/                 # Web application static files
 ├── templates/              # Web application templates
 └── .env                   # API keys and configuration

@@ -405,7 +405,7 @@ def main():
             else:
                 excel_path = get_user_input(
                     "Enter Excel output path",
-                    default="reading_summary.xlsx"
+                    default="uploads/reading_summary.xlsx"
                 )
 
         # Create agents and tasks
