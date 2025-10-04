@@ -2,6 +2,9 @@
 
 // Global variables
 let currentForm = null;
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
 
 // Default job description
 const DEFAULT_JOB_DESCRIPTION = "Researcher position focused on AI in education with emphasis on marginalized communities and learning design";
@@ -794,3 +797,202 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// Voice Recording Functions
+async function toggleVoiceRecording() {
+    if (isRecording) {
+        stopRecording();
+    } else {
+        await startRecording();
+    }
+}
+
+async function startRecording() {
+    try {
+        console.log('Starting recording...');
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                sampleRate: 44100
+            }
+        });
+        
+        mediaRecorder = new MediaRecorder(stream, {
+            mimeType: 'audio/webm;codecs=opus'
+        });
+        audioChunks = [];
+        
+        mediaRecorder.ondataavailable = event => {
+            console.log('Audio data available:', event.data.size, 'bytes');
+            audioChunks.push(event.data);
+        };
+        
+        mediaRecorder.onstop = async () => {
+            console.log('Recording stopped, processing audio...');
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            console.log('Audio blob created:', audioBlob.size, 'bytes');
+            
+            if (audioBlob.size === 0) {
+                showVoiceError('No audio recorded. Please try again.');
+                return;
+            }
+            
+            await transcribeAudio(audioBlob);
+            
+            // Stop all tracks to release microphone
+            stream.getTracks().forEach(track => track.stop());
+        };
+        
+        mediaRecorder.onerror = (event) => {
+            console.error('MediaRecorder error:', event);
+            showVoiceError('Recording error occurred. Please try again.');
+        };
+        
+        mediaRecorder.start(100); // Collect data every 100ms
+        isRecording = true;
+        
+        // Update UI
+        updateVoiceUI(true);
+        
+    } catch (error) {
+        console.error('Error starting recording:', error);
+        showVoiceError('Could not access microphone. Please check permissions.');
+    }
+}
+
+function stopRecording() {
+    if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        isRecording = false;
+        updateVoiceUI(false);
+    }
+}
+
+function updateVoiceUI(recording) {
+    const btn = document.getElementById('voiceRecordBtn');
+    const btnText = document.getElementById('voiceBtnText');
+    const status = document.getElementById('voiceStatus');
+    const statusText = document.getElementById('voiceStatusText');
+    
+    if (recording) {
+        btn.classList.add('recording');
+        btnText.textContent = 'Stop Recording';
+        status.style.display = 'block';
+        statusText.textContent = 'Recording... Speak now!';
+        status.classList.add('recording');
+    } else {
+        btn.classList.remove('recording');
+        btnText.textContent = 'Record Voice';
+        statusText.textContent = 'Processing audio...';
+        status.classList.remove('recording');
+        status.classList.add('processing');
+    }
+}
+
+async function transcribeAudio(audioBlob) {
+    try {
+        console.log('Sending audio for transcription...');
+        const formData = new FormData();
+        formData.append('audio', audioBlob, 'recording.webm');
+        
+        const response = await fetch('/api/transcribe', {
+            method: 'POST',
+            body: formData
+        });
+        
+        console.log('Transcription response status:', response.status);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Transcription failed:', errorText);
+            showVoiceError(`Transcription failed: ${response.status} ${response.statusText}`);
+            return;
+        }
+        
+        const result = await response.json();
+        console.log('Transcription result:', result);
+        
+        if (result.success) {
+            // Update the job description textarea
+            const jobDescription = document.getElementById('jobDescription');
+            const currentText = jobDescription.value.trim();
+            const transcribedText = result.text.trim();
+            
+            console.log('Transcribed text:', transcribedText);
+            
+            if (currentText) {
+                jobDescription.value = currentText + ' ' + transcribedText;
+            } else {
+                jobDescription.value = transcribedText;
+            }
+            
+            // Show success message
+            showVoiceSuccess('Audio transcribed successfully!');
+        } else {
+            showVoiceError(result.error || 'Failed to transcribe audio');
+        }
+        
+    } catch (error) {
+        console.error('Error transcribing audio:', error);
+        showVoiceError('Failed to transcribe audio. Please try again.');
+    } finally {
+        // Reset UI
+        const status = document.getElementById('voiceStatus');
+        const statusText = document.getElementById('voiceStatusText');
+        status.style.display = 'none';
+        status.classList.remove('processing');
+    }
+}
+
+function showVoiceSuccess(message) {
+    const status = document.getElementById('voiceStatus');
+    const statusText = document.getElementById('voiceStatusText');
+    
+    status.style.display = 'block';
+    statusText.textContent = message;
+    status.classList.remove('recording', 'processing');
+    status.classList.add('success');
+    
+    setTimeout(() => {
+        status.style.display = 'none';
+        status.classList.remove('success');
+    }, 3000);
+}
+
+function showVoiceError(message) {
+    const status = document.getElementById('voiceStatus');
+    const statusText = document.getElementById('voiceStatusText');
+    
+    status.style.display = 'block';
+    statusText.textContent = message;
+    status.classList.remove('recording', 'processing', 'success');
+    status.classList.add('error');
+    
+    setTimeout(() => {
+        status.style.display = 'none';
+        status.classList.remove('error');
+    }, 5000);
+}
+
+// Check voice service availability on page load
+async function checkVoiceAvailability() {
+    try {
+        const response = await fetch('/api/voice-status');
+        const result = await response.json();
+        
+        if (!result.whisper_available) {
+            const btn = document.getElementById('voiceRecordBtn');
+            btn.disabled = true;
+            btn.title = 'Voice service not available: ' + (result.error || 'Unknown error');
+            btn.style.opacity = '0.5';
+        }
+    } catch (error) {
+        console.error('Error checking voice availability:', error);
+    }
+}
+
+// Initialize voice functionality
+document.addEventListener('DOMContentLoaded', function() {
+    checkVoiceAvailability();
+});

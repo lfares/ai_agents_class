@@ -98,6 +98,9 @@
                             <button type="button" class="btn btn-outline btn-small" onclick="clearJobDescription()">
                                 <i class="fas fa-eraser"></i> Clear
                             </button>
+                            <button type="button" class="btn btn-outline btn-small" id="voiceRecordBtn" onclick="toggleVoiceRecording()">
+                                <i class="fas fa-microphone"></i> <span id="voiceBtnText">Record Voice</span>
+                            </button>
                         </div>
                         <textarea 
                             id="jobDescription" 
@@ -106,6 +109,10 @@
                             rows="6"
                             required
                         ></textarea>
+                        <div id="voiceStatus" class="voice-status" style="display: none;">
+                            <i class="fas fa-microphone-alt"></i>
+                            <span id="voiceStatusText">Ready to record...</span>
+                        </div>
                     </div>
 
                     <div class="form-actions">

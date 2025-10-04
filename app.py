@@ -12,6 +12,9 @@ from werkzeug.utils import secure_filename
 from crewai import Task
 from langchain.schema import BaseMessage, HumanMessage, AIMessage
 
+# Import voice processing modules
+from voice.stt_handler import SpeechToTextHandler
+
 # Import our existing agent functions
 from main import (
     create_interviewer_agent,
@@ -350,6 +353,110 @@ def get_cv():
 def health_check():
     """Health check endpoint"""
     return jsonify({'status': 'healthy', 'message': 'AI Agent Assistant is running'})
+
+# Initialize Whisper model globally
+whisper_handler = None
+
+def get_whisper_handler():
+    """Get or initialize Whisper handler"""
+    global whisper_handler
+    if whisper_handler is None:
+        try:
+            whisper_handler = SpeechToTextHandler(model_size="base")
+        except Exception as e:
+            print(f"Warning: Could not initialize Whisper: {e}")
+            return None
+    return whisper_handler
+
+@app.route('/api/transcribe', methods=['POST'])
+def transcribe_audio():
+    """Transcribe audio file to text using Whisper"""
+    try:
+        print("Transcription request received")
+        
+        # Check if audio file was uploaded
+        if 'audio' not in request.files:
+            print("No audio file in request")
+            return jsonify({'error': 'No audio file uploaded'}), 400
+        
+        audio_file = request.files['audio']
+        if audio_file.filename == '':
+            print("Empty filename")
+            return jsonify({'error': 'No file selected'}), 400
+        
+        print(f"Audio file received: {audio_file.filename}, size: {len(audio_file.read())}")
+        audio_file.seek(0)  # Reset file pointer
+        
+        # Get Whisper handler
+        whisper = get_whisper_handler()
+        if not whisper:
+            print("Whisper handler not available")
+            return jsonify({'error': 'Speech-to-text service not available'}), 500
+        
+        # Save uploaded audio file temporarily
+        filename = secure_filename(audio_file.filename or 'recording.wav')
+        temp_path = os.path.join(app.config['UPLOAD_FOLDER'], f"temp_{filename}")
+        print(f"Saving audio to: {temp_path}")
+        
+        audio_file.save(temp_path)
+        
+        # Check if file was saved
+        if not os.path.exists(temp_path):
+            print("Failed to save audio file")
+            return jsonify({'error': 'Failed to save audio file'}), 500
+        
+        file_size = os.path.getsize(temp_path)
+        print(f"Audio file saved, size: {file_size} bytes")
+        
+        if file_size == 0:
+            print("Audio file is empty")
+            os.unlink(temp_path)
+            return jsonify({'error': 'Audio file is empty'}), 400
+        
+        try:
+            # Transcribe audio
+            print("Starting transcription...")
+            transcribed_text = whisper.transcribe_audio_file(temp_path)
+            print(f"Transcription completed: {len(transcribed_text)} characters")
+            
+            return jsonify({
+                'success': True,
+                'text': transcribed_text,
+                'message': 'Audio transcribed successfully'
+            })
+        
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+                print("Temporary file cleaned up")
+    
+    except Exception as e:
+        print(f"Error in transcription: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/voice-status')
+def voice_status():
+    """Check if voice services are available"""
+    try:
+        whisper = get_whisper_handler()
+        if whisper:
+            return jsonify({
+                'whisper_available': True,
+                'whisper_model': whisper.get_model_info()
+            })
+        else:
+            return jsonify({
+                'whisper_available': False,
+                'error': 'Whisper not initialized'
+            })
+    except Exception as e:
+        return jsonify({
+            'whisper_available': False,
+            'error': str(e)
+        })
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5002))
