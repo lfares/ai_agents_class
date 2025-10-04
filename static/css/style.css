@@ -828,7 +828,7 @@ body {
 }
 
 .voice-status.recording {
-    background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+    background: linear-gradient(135deg, #4ecdc4, #44a08d);
     color: white;
     animation: pulse 1.5s infinite;
 }
@@ -864,13 +864,13 @@ body {
 }
 
 .btn.recording {
-    background: linear-gradient(135deg, #ff6b6b, #ee5a52) !important;
+    background: linear-gradient(135deg, #4ecdc4, #44a08d) !important;
     color: white !important;
     animation: pulse 1.5s infinite;
 }
 
 .btn.recording:hover {
-    background: linear-gradient(135deg, #ff5252, #e53935) !important;
+    background: linear-gradient(135deg, #45b7aa, #3d9b8a) !important;
 }
 
 /* Voice button specific styles */

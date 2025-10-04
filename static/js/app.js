@@ -5,6 +5,9 @@ let currentForm = null;
 let mediaRecorder = null;
 let audioChunks = [];
 let isRecording = false;
+let recognition = null;
+let isRealtimeTranscribing = false;
+let accumulatedText = ''; // Track accumulated final text
 
 // Default job description
 const DEFAULT_JOB_DESCRIPTION = "Researcher position focused on AI in education with emphasis on marginalized communities and learning design";
@@ -800,150 +803,155 @@ document.head.appendChild(style);
 
 // Voice Recording Functions
 async function toggleVoiceRecording() {
-    if (isRecording) {
-        stopRecording();
+    if (isRealtimeTranscribing) {
+        stopRealtimeTranscription();
     } else {
-        await startRecording();
+        await startRealtimeTranscription();
     }
 }
 
-async function startRecording() {
+async function startRealtimeTranscription() {
     try {
-        console.log('Starting recording...');
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            audio: {
-                echoCancellation: true,
-                noiseSuppression: true,
-                sampleRate: 44100
+        console.log('Starting real-time transcription...');
+        
+        // Check if browser supports Web Speech API
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            showVoiceError('Your browser does not support real-time speech recognition. Please use Chrome or Edge.');
+            return;
+        }
+        
+        // Create speech recognition instance
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        
+        // Configure recognition
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+        
+        // Get current text in textarea
+        const jobDescription = document.getElementById('jobDescription');
+        const currentText = jobDescription.value.trim();
+        
+        // Initialize accumulated text with current text
+        accumulatedText = currentText;
+        
+        recognition.onstart = () => {
+            console.log('Speech recognition started');
+            isRealtimeTranscribing = true;
+            updateVoiceUI(true);
+        };
+        
+        recognition.onresult = (event) => {
+            let interimTranscript = '';
+            let finalTranscript = '';
+            
+            // Process all results
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const transcript = event.results[i][0].transcript;
+                
+                if (event.results[i].isFinal) {
+                    finalTranscript += transcript;
+                } else {
+                    interimTranscript += transcript;
+                }
             }
-        });
-        
-        mediaRecorder = new MediaRecorder(stream, {
-            mimeType: 'audio/webm;codecs=opus'
-        });
-        audioChunks = [];
-        
-        mediaRecorder.ondataavailable = event => {
-            console.log('Audio data available:', event.data.size, 'bytes');
-            audioChunks.push(event.data);
-        };
-        
-        mediaRecorder.onstop = async () => {
-            console.log('Recording stopped, processing audio...');
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            console.log('Audio blob created:', audioBlob.size, 'bytes');
             
-            if (audioBlob.size === 0) {
-                showVoiceError('No audio recorded. Please try again.');
-                return;
+            // Update accumulated text with final results
+            if (finalTranscript) {
+                accumulatedText += (accumulatedText ? ' ' : '') + finalTranscript;
             }
             
-            await transcribeAudio(audioBlob);
+            // Update textarea with accumulated text + interim text
+            if (finalTranscript || interimTranscript) {
+                const displayText = accumulatedText + (interimTranscript ? ' ' + interimTranscript : '');
+                jobDescription.value = displayText;
+                
+                // Show interim results in status
+                if (interimTranscript) {
+                    updateVoiceStatus(`Speaking: "${interimTranscript}"`);
+                } else if (finalTranscript) {
+                    updateVoiceStatus(`Added: "${finalTranscript}"`);
+                }
+            }
+        };
+        
+        recognition.onerror = (event) => {
+            console.error('Speech recognition error:', event.error);
+            let errorMessage = 'Speech recognition error occurred.';
             
-            // Stop all tracks to release microphone
-            stream.getTracks().forEach(track => track.stop());
+            switch (event.error) {
+                case 'no-speech':
+                    errorMessage = 'No speech detected. Please try again.';
+                    break;
+                case 'audio-capture':
+                    errorMessage = 'No microphone found. Please check your microphone.';
+                    break;
+                case 'not-allowed':
+                    errorMessage = 'Microphone access denied. Please allow microphone access.';
+                    break;
+                case 'network':
+                    errorMessage = 'Network error. Please check your connection.';
+                    break;
+            }
+            
+            showVoiceError(errorMessage);
+            stopRealtimeTranscription();
         };
         
-        mediaRecorder.onerror = (event) => {
-            console.error('MediaRecorder error:', event);
-            showVoiceError('Recording error occurred. Please try again.');
+        recognition.onend = () => {
+            console.log('Speech recognition ended');
+            isRealtimeTranscribing = false;
+            updateVoiceUI(false);
         };
         
-        mediaRecorder.start(100); // Collect data every 100ms
-        isRecording = true;
-        
-        // Update UI
-        updateVoiceUI(true);
+        // Start recognition
+        recognition.start();
         
     } catch (error) {
-        console.error('Error starting recording:', error);
-        showVoiceError('Could not access microphone. Please check permissions.');
+        console.error('Error starting real-time transcription:', error);
+        showVoiceError('Could not start speech recognition. Please try again.');
     }
 }
 
-function stopRecording() {
-    if (mediaRecorder && isRecording) {
-        mediaRecorder.stop();
-        isRecording = false;
+function stopRealtimeTranscription() {
+    if (recognition && isRealtimeTranscribing) {
+        recognition.stop();
+        isRealtimeTranscribing = false;
         updateVoiceUI(false);
     }
 }
 
-function updateVoiceUI(recording) {
+function updateVoiceUI(transcribing) {
     const btn = document.getElementById('voiceRecordBtn');
     const btnText = document.getElementById('voiceBtnText');
     const status = document.getElementById('voiceStatus');
     const statusText = document.getElementById('voiceStatusText');
     
-    if (recording) {
+    if (transcribing) {
         btn.classList.add('recording');
-        btnText.textContent = 'Stop Recording';
+        btnText.textContent = 'Stop Speaking';
         status.style.display = 'block';
-        statusText.textContent = 'Recording... Speak now!';
+        statusText.textContent = 'Listening... Speak now!';
         status.classList.add('recording');
     } else {
         btn.classList.remove('recording');
-        btnText.textContent = 'Record Voice';
-        statusText.textContent = 'Processing audio...';
+        btnText.textContent = 'Speak Now';
+        status.style.display = 'none'; // Hide the status completely when not transcribing
         status.classList.remove('recording');
-        status.classList.add('processing');
-    }
-}
-
-async function transcribeAudio(audioBlob) {
-    try {
-        console.log('Sending audio for transcription...');
-        const formData = new FormData();
-        formData.append('audio', audioBlob, 'recording.webm');
-        
-        const response = await fetch('/api/transcribe', {
-            method: 'POST',
-            body: formData
-        });
-        
-        console.log('Transcription response status:', response.status);
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Transcription failed:', errorText);
-            showVoiceError(`Transcription failed: ${response.status} ${response.statusText}`);
-            return;
-        }
-        
-        const result = await response.json();
-        console.log('Transcription result:', result);
-        
-        if (result.success) {
-            // Update the job description textarea
-            const jobDescription = document.getElementById('jobDescription');
-            const currentText = jobDescription.value.trim();
-            const transcribedText = result.text.trim();
-            
-            console.log('Transcribed text:', transcribedText);
-            
-            if (currentText) {
-                jobDescription.value = currentText + ' ' + transcribedText;
-            } else {
-                jobDescription.value = transcribedText;
-            }
-            
-            // Show success message
-            showVoiceSuccess('Audio transcribed successfully!');
-        } else {
-            showVoiceError(result.error || 'Failed to transcribe audio');
-        }
-        
-    } catch (error) {
-        console.error('Error transcribing audio:', error);
-        showVoiceError('Failed to transcribe audio. Please try again.');
-    } finally {
-        // Reset UI
-        const status = document.getElementById('voiceStatus');
-        const statusText = document.getElementById('voiceStatusText');
-        status.style.display = 'none';
         status.classList.remove('processing');
     }
 }
+
+function updateVoiceStatus(message) {
+    const statusText = document.getElementById('voiceStatusText');
+    if (statusText) {
+        statusText.textContent = message;
+    }
+}
+
+// Real-time transcription functions (no longer needed for Whisper)
+// Keeping the old function for fallback if needed
 
 function showVoiceSuccess(message) {
     const status = document.getElementById('voiceStatus');
@@ -978,13 +986,23 @@ function showVoiceError(message) {
 // Check voice service availability on page load
 async function checkVoiceAvailability() {
     try {
-        const response = await fetch('/api/voice-status');
-        const result = await response.json();
-        
-        if (!result.whisper_available) {
+        // Check if browser supports Web Speech API
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
             const btn = document.getElementById('voiceRecordBtn');
             btn.disabled = true;
-            btn.title = 'Voice service not available: ' + (result.error || 'Unknown error');
+            btn.title = 'Real-time speech recognition not supported in this browser. Please use Chrome or Edge.';
+            btn.style.opacity = '0.5';
+            return;
+        }
+        
+        // Check if microphone is available
+        try {
+            await navigator.mediaDevices.getUserMedia({ audio: true });
+            console.log('Voice services available');
+        } catch (error) {
+            const btn = document.getElementById('voiceRecordBtn');
+            btn.disabled = true;
+            btn.title = 'Microphone access required for voice recording';
             btn.style.opacity = '0.5';
         }
     } catch (error) {
