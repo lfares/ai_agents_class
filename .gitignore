@@ -39,3 +39,7 @@ Ven312/
 venv312/
 .env
 venv312/
+
+# Generated output files
+*.xlsx
+*_temp.txt
