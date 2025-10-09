@@ -145,14 +145,12 @@ def create_interviewer_agent(llm=None):
     return Agent(**cfg)
 
 def create_reading_summary_agent(llm=None, custom_interests=None):
-    # Default interests
+    # Default interests (used only if no custom interests provided)
     default_interests = "AI in Education, Marginalized Communities, EdTech, Learning Design, Career Readiness, K-12, Soft Skills"
     
-    # Combine default and custom interests
-    if custom_interests:
-        interests = f"{default_interests}, {custom_interests}"
-    else:
-        interests = default_interests
+    # Use custom interests if provided, otherwise use defaults
+    # custom_interests now contains ALL interests from the frontend (not just added ones)
+    interests = custom_interests if custom_interests else default_interests
     
     cfg = dict(
         role="Reading Summarizer",
