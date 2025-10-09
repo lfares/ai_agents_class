@@ -8,6 +8,8 @@ let isRecording = false;
 let recognition = null;
 let isRealtimeTranscribing = false;
 let accumulatedText = ''; // Track accumulated final text
+let currentAudio = null; // Track current playing audio
+let isPlayingTTS = false; // Track TTS playing state
 
 // Default job description
 const DEFAULT_JOB_DESCRIPTION = "Researcher position focused on AI in education with emphasis on marginalized communities and learning design";
@@ -202,12 +204,8 @@ async function handleReadingSubmit(event) {
         const result = await response.json();
         
         if (result.success) {
-            // Check if we have structured data (demo mode)
-            if (result.structured_data) {
-                displayStructuredResult(result.structured_data);
-            } else {
-                displayResult(result.result);
-            }
+            // Display result
+            displayResult(result.result);
             
             // Show download link if Excel file was created
             if (result.excel_file) {
@@ -238,45 +236,6 @@ function displayResult(result) {
     hideLoading();
 }
 
-// Display structured result (for demo mode)
-function displayStructuredResult(data) {
-    const resultText = document.getElementById('resultText');
-    
-    if (currentForm === 'reading') {
-        // Create a beautiful table for the reading summary
-        resultText.innerHTML = `
-            <div class="reading-summary-table">
-                <h3><i class="fas fa-book"></i> ${data.title}</h3>
-                <div class="demo-mode-notice">
-                    <i class="fas fa-info-circle"></i> Demo Mode - Sample data
-                </div>
-                <table class="summary-table">
-                    <thead>
-                        <tr>
-                            <th><i class="fas fa-lightbulb"></i> Key Concepts & Definitions</th>
-                            <th><i class="fas fa-heart"></i> Relevance & Curiosity</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td class="concepts-cell">
-                                ${data.key_concepts.map(concept => `<div class="concept-item">• ${concept}</div>`).join('')}
-                            </td>
-                            <td class="relevance-cell">
-                                ${data.relevance.map(rel => `<div class="relevance-item">• ${rel}</div>`).join('')}
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        `;
-    } else {
-        // For interview results, use the regular formatting
-        resultText.innerHTML = formatResult(data);
-    }
-    
-    hideLoading();
-}
 
 // Display error
 function displayError(error) {
@@ -1005,9 +964,155 @@ async function checkVoiceAvailability() {
             btn.title = 'Microphone access required for voice recording';
             btn.style.opacity = '0.5';
         }
+        
+        // Check TTS availability
+        try {
+            const response = await fetch('/api/voice-status');
+            const result = await response.json();
+            
+            const ttsBtn = document.getElementById('ttsBtn');
+            if (ttsBtn) {
+                if (!result.tts_available) {
+                    ttsBtn.disabled = true;
+                    ttsBtn.title = 'Text-to-Speech not available';
+                    ttsBtn.style.opacity = '0.5';
+                } else {
+                    console.log('TTS service available');
+                }
+            }
+        } catch (error) {
+            console.error('Error checking TTS availability:', error);
+        }
     } catch (error) {
         console.error('Error checking voice availability:', error);
     }
+}
+
+// Text-to-Speech Functions
+async function toggleTextToSpeech() {
+    if (isPlayingTTS) {
+        stopTextToSpeech();
+    } else {
+        await startTextToSpeech();
+    }
+}
+
+async function startTextToSpeech() {
+    try {
+        // Get the results content
+        const resultsContent = document.querySelector('.results-content');
+        if (!resultsContent) {
+            showTtsError('No results to read');
+            return;
+        }
+        
+        // Extract text from results (skip loading and error states)
+        const textElements = resultsContent.querySelectorAll('h3, p, .agent-response, .summary-content');
+        let textToRead = '';
+        
+        textElements.forEach(element => {
+            if (element.style.display !== 'none' && element.textContent.trim()) {
+                textToRead += element.textContent.trim() + ' ';
+            }
+        });
+        
+        if (!textToRead.trim()) {
+            showTtsError('No text content found to read');
+            return;
+        }
+        
+        // Limit text length for TTS
+        if (textToRead.length > 4000) {
+            textToRead = textToRead.substring(0, 4000) + '...';
+        }
+        
+        console.log('Converting text to speech:', textToRead.length, 'characters');
+        
+        // Update UI
+        updateTtsUI(true);
+        
+        // Call TTS API
+        const response = await fetch('/api/text-to-speech', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                text: textToRead,
+                voice: 'nova' // Female voice
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            if (errorData.error && errorData.error.includes('API key')) {
+                throw new Error('Text-to-Speech service error: ' + errorData.error);
+            }
+            throw new Error(errorData.error || 'TTS request failed');
+        }
+        
+        const result = await response.json();
+        
+        if (result.success && result.audio_data) {
+            // Create audio element and play
+            const audioBlob = new Blob([Uint8Array.from(atob(result.audio_data), c => c.charCodeAt(0))], { type: 'audio/mpeg' });
+            const audioUrl = URL.createObjectURL(audioBlob);
+            
+            currentAudio = new Audio(audioUrl);
+            currentAudio.onended = () => {
+                isPlayingTTS = false;
+                updateTtsUI(false);
+                URL.revokeObjectURL(audioUrl);
+            };
+            
+            currentAudio.onerror = () => {
+                showTtsError('Error playing audio');
+                isPlayingTTS = false;
+                updateTtsUI(false);
+            };
+            
+            await currentAudio.play();
+            isPlayingTTS = true;
+            
+        } else {
+            throw new Error('No audio data received');
+        }
+        
+    } catch (error) {
+        console.error('TTS Error:', error);
+        showTtsError('Failed to read text aloud: ' + error.message);
+        isPlayingTTS = false;
+        updateTtsUI(false);
+    }
+}
+
+function stopTextToSpeech() {
+    if (currentAudio && isPlayingTTS) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        currentAudio = null;
+        isPlayingTTS = false;
+        updateTtsUI(false);
+    }
+}
+
+function updateTtsUI(playing) {
+    const btn = document.getElementById('ttsBtn');
+    const btnText = document.getElementById('ttsBtnText');
+    
+    if (playing) {
+        btn.classList.add('playing');
+        btnText.textContent = 'Stop Reading';
+    } else {
+        btn.classList.remove('playing');
+        btnText.textContent = 'Read Aloud';
+    }
+}
+
+function showTtsError(message) {
+    console.error('TTS Error:', message);
+    // You could add a toast notification here
+    alert('TTS Error: ' + message);
 }
 
 // Initialize voice functionality

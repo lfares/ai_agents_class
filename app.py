@@ -14,6 +14,7 @@ from langchain.schema import BaseMessage, HumanMessage, AIMessage
 
 # Import voice processing modules
 from voice.stt_handler import SpeechToTextHandler
+from voice.tts_handler import TextToSpeechHandler
 
 # Import our existing agent functions
 from main import (
@@ -99,7 +100,7 @@ def get_llm_config():
             os.environ["GOOGLE_API_KEY"] = gemini_key
             return f"gemini/{gemini_model}"
         except Exception as e:
-            print(f"Gemini failed: {e}, falling back to demo mode")
+            print(f"Gemini failed: {e}")
     
     # If Gemini fails, try OpenAI
     openai_model = os.environ.get("OPENAI_MODEL", "gpt-3.5-turbo")
@@ -109,10 +110,10 @@ def get_llm_config():
             from langchain_community.chat_models import ChatOpenAI
             return ChatOpenAI(model_name=openai_model, openai_api_key=openai_key)
         except Exception as e:
-            print(f"OpenAI failed: {e}, falling back to demo mode")
+            print(f"OpenAI failed: {e}")
     
-    # Fallback to demo mode
-    print("Using demo mode - no API keys available")
+    # No API keys available
+    print("No API keys available - LLM functionality disabled")
     return None
 
 
@@ -147,79 +148,20 @@ def interview_preparation():
             verbose=False
         )
         
-        # Check if we're in demo mode
+        # Check if LLM is available
         if llm is None:
-            # Demo mode - return comprehensive interview preparation
-            demo_result = """# Interview Preparation
-
-## Potential Questions & Answers:
-
-### 1. Tell me about yourself and your experience with AI in education.
-**Answer (STAR Method):**
-- **Situation**: I'm a graduate student at MIT focusing on AI applications in education, with particular interest in serving marginalized communities.
-- **Task**: I've been working on developing AI-powered educational tools that can adapt to different learning styles and cultural contexts.
-- **Action**: I've collaborated with educators, community leaders, and students to understand their specific needs and co-design solutions.
-- **Result**: This work has led to increased engagement rates and more personalized learning experiences for underserved populations.
-
-### 2. How would you approach designing learning experiences for marginalized communities?
-**Answer (STAR Method):**
-- **Situation**: During my research, I identified significant gaps in educational technology accessibility for marginalized communities.
-- **Task**: I needed to create inclusive learning platforms that respect cultural differences and address specific barriers.
-- **Action**: I conducted extensive community outreach, partnered with local organizations, and implemented user-centered design principles.
-- **Result**: Developed a framework that increased participation by 60% and received positive feedback from community stakeholders.
-
-### 3. Describe a time when you had to adapt your teaching methods for different learning styles.
-**Answer (STAR Method):**
-- **Situation**: I was teaching a diverse group of students with varying technical backgrounds and learning preferences.
-- **Task**: I needed to ensure all students could effectively engage with complex AI concepts regardless of their starting point.
-- **Action**: I implemented multiple teaching modalities including visual diagrams, hands-on coding exercises, and collaborative discussions.
-- **Result**: Student satisfaction increased by 45% and all students successfully completed the course with improved understanding.
-
-### 4. How do you stay current with developments in AI and educational technology?
-**Answer:**
-- I actively participate in academic conferences like AERA and AIED
-- I follow key researchers and practitioners on social media and academic networks
-- I engage in hands-on experimentation with new tools and platforms
-- I maintain connections with industry professionals and educators
-- I contribute to open-source educational technology projects
-
-### 5. What challenges do you see in implementing AI in K-12 education?
-**Answer:**
-- **Equity and Access**: Ensuring AI tools don't widen the digital divide
-- **Teacher Training**: Supporting educators in effectively integrating AI tools
-- **Data Privacy**: Protecting student information while enabling personalized learning
-- **Curriculum Integration**: Aligning AI tools with existing educational standards
-- **Cultural Sensitivity**: Ensuring AI respects diverse cultural contexts and values
-
-### 6. How would you measure the success of an AI-powered educational intervention?
-**Answer:**
-- **Learning Outcomes**: Standardized test scores, project completion rates, and skill assessments
-- **Engagement Metrics**: Time spent on platform, interaction rates, and student feedback
-- **Equity Indicators**: Participation rates across different demographic groups
-- **Long-term Impact**: Career readiness, continued learning, and real-world application
-- **Qualitative Feedback**: Teacher and student testimonials, case studies, and observations
-
-## Tips for Confidence:
-- Practice your answers out loud, focusing on the STAR method structure
-- Prepare specific examples from your experience with concrete numbers and outcomes
-- Research the company's mission, values, and recent projects
-- Prepare thoughtful questions about their AI initiatives and educational impact
-- Be ready to discuss how your research interests align with their goals
-- Practice explaining complex AI concepts in simple, accessible terms"""
-            
             return jsonify({
-                'success': True,
-                'result': demo_result,
-                'demo_mode': True
-            })
-        else:
-            # Normal mode - run crew
-            result = crew.kickoff()
-            
-            return jsonify({
-                'success': True,
-                'result': str(result)
-            })
+                'success': False,
+                'error': 'LLM service not available. Please set OPENAI_API_KEY or GEMINI_API_KEY environment variable.'
+            }), 500
+        
+        # Run crew with LLM
+        result = crew.kickoff()
+        
+        return jsonify({
+            'success': True,
+            'result': str(result)
+        })
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -264,64 +206,32 @@ def pdf_summarization():
             verbose=False
         )
         
-        # Check if we're in demo mode
+        # Check if LLM is available
         if llm is None:
-            # Demo mode - create Excel file directly and return structured data
-            try:
-                import pandas as pd
-                data = {
-                    'Name': ['The Future of AI in Education'],
-                    'Key concepts & Definitions': ['• Artificial Intelligence in Education (AIEd) - The use of AI technologies to enhance learning experiences\n• Personalized Learning - Tailoring educational content to individual student needs\n• Learning Analytics - The measurement and analysis of learning data to improve outcomes'],
-                    'Relevance & Curiosity': ['• Directly relevant to Livia\'s interests in leveraging AI for educational equity\n• Connects to her work with marginalized communities and learning design\n• Provides insights into career readiness and K-12 education applications']
-                }
-                df = pd.DataFrame(data)
-                df.to_excel(excel_path, index=False)
-                
-                # Return structured data for the platform to display
-                return jsonify({
-                    'success': True,
-                    'result': 'Demo mode: Excel file created with sample data',
-                    'excel_file': excel_filename,
-                    'demo_mode': True,
-                    'structured_data': {
-                        'title': 'The Future of AI in Education',
-                        'key_concepts': [
-                            'Artificial Intelligence in Education (AIEd) - The use of AI technologies to enhance learning experiences',
-                            'Personalized Learning - Tailoring educational content to individual student needs',
-                            'Learning Analytics - The measurement and analysis of learning data to improve outcomes'
-                        ],
-                        'relevance': [
-                            'Directly relevant to Livia\'s interests in leveraging AI for educational equity',
-                            'Connects to her work with marginalized communities and learning design',
-                            'Provides insights into career readiness and K-12 education applications'
-                        ]
-                    }
-                })
-            except Exception as e:
-                return jsonify({
-                    'success': False,
-                    'error': f'Demo mode error: {str(e)}'
-                })
+            return jsonify({
+                'success': False,
+                'error': 'LLM service not available. Please set OPENAI_API_KEY or GEMINI_API_KEY environment variable.'
+            }), 500
+        
+        # Run crew with LLM
+        result = crew.kickoff()
+        
+        # Create Excel file from the agent's result
+        excel_created = create_excel_from_summary(str(result), excel_path, filename)
+        
+        if excel_created and os.path.exists(excel_path):
+            return jsonify({
+                'success': True,
+                'result': str(result),
+                'excel_file': excel_filename
+            })
         else:
-            # Normal mode - run crew
-            result = crew.kickoff()
-            
-            # Create Excel file from the agent's result
-            excel_created = create_excel_from_summary(str(result), excel_path, filename)
-            
-            if excel_created and os.path.exists(excel_path):
-                return jsonify({
-                    'success': True,
-                    'result': str(result),
-                    'excel_file': excel_filename
-                })
-            else:
-                return jsonify({
-                    'success': True,
-                    'result': str(result),
-                    'excel_file': None,
-                    'message': 'Excel file could not be created from agent result'
-                })
+            return jsonify({
+                'success': True,
+                'result': str(result),
+                'excel_file': None,
+                'message': 'Excel file could not be created from agent result'
+            })
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -354,8 +264,9 @@ def health_check():
     """Health check endpoint"""
     return jsonify({'status': 'healthy', 'message': 'AI Agent Assistant is running'})
 
-# Initialize Whisper model globally
+# Initialize voice handlers globally
 whisper_handler = None
+tts_handler = None
 
 def get_whisper_handler():
     """Get or initialize Whisper handler"""
@@ -367,6 +278,17 @@ def get_whisper_handler():
             print(f"Warning: Could not initialize Whisper: {e}")
             return None
     return whisper_handler
+
+def get_tts_handler():
+    """Get or initialize TTS handler"""
+    global tts_handler
+    if tts_handler is None:
+        try:
+            tts_handler = TextToSpeechHandler()
+        except Exception as e:
+            print(f"Warning: Could not initialize TTS: {e}")
+            return None
+    return tts_handler
 
 @app.route('/api/transcribe', methods=['POST'])
 def transcribe_audio():
@@ -442,21 +364,57 @@ def voice_status():
     """Check if voice services are available"""
     try:
         whisper = get_whisper_handler()
-        if whisper:
-            return jsonify({
-                'whisper_available': True,
-                'whisper_model': whisper.get_model_info()
-            })
-        else:
-            return jsonify({
-                'whisper_available': False,
-                'error': 'Whisper not initialized'
-            })
+        tts = get_tts_handler()
+        
+        return jsonify({
+            'whisper_available': whisper is not None,
+            'tts_available': tts is not None,
+            'whisper_model': whisper.get_model_info() if whisper else None,
+            'tts_voices': tts.get_voice_info() if tts else None
+        })
     except Exception as e:
         return jsonify({
             'whisper_available': False,
+            'tts_available': False,
             'error': str(e)
         })
+
+@app.route('/api/text-to-speech', methods=['POST'])
+def text_to_speech():
+    """Convert text to speech using OpenAI TTS"""
+    try:
+        data = request.get_json()
+        if not data or 'text' not in data:
+            return jsonify({'error': 'Text is required'}), 400
+        
+        text = data['text'].strip()
+        voice = data.get('voice', 'nova')  # Default to female voice
+        
+        if not text:
+            return jsonify({'error': 'Text cannot be empty'}), 400
+        
+        tts_handler = get_tts_handler()
+        if not tts_handler:
+            return jsonify({'error': 'TTS service not available'}), 500
+        
+        # Convert text to speech
+        audio_base64 = tts_handler.text_to_speech(text, voice)
+        
+        if audio_base64:
+            return jsonify({
+                'success': True,
+                'audio_data': audio_base64,
+                'voice_used': voice,
+                'text_length': len(text)
+            })
+        else:
+            return jsonify({'error': 'Failed to generate speech'}), 500
+            
+    except Exception as e:
+        print(f"Error in TTS endpoint: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5002))

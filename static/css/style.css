@@ -525,6 +525,12 @@ body {
     border-bottom: 2px solid #e2e8f0;
 }
 
+.results-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
 .results-header h2 {
     font-size: 1.8rem;
     font-weight: 600;
@@ -871,6 +877,26 @@ body {
 
 .btn.recording:hover {
     background: linear-gradient(135deg, #45b7aa, #3d9b8a) !important;
+}
+
+/* TTS Button Styles */
+.btn.playing {
+    background: linear-gradient(135deg, #ff6b6b, #ee5a52) !important;
+    color: white !important;
+    animation: pulse 1.5s infinite;
+}
+
+.btn.playing:hover {
+    background: linear-gradient(135deg, #ff5252, #e53935) !important;
+}
+
+#ttsBtn {
+    transition: all 0.3s ease;
+}
+
+#ttsBtn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 /* Voice button specific styles */

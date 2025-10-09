@@ -41,11 +41,20 @@ source venv312/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. Prepare Your Files
+### 4. Set Environment Variables
+```bash
+# Required for Text-to-Speech functionality
+export OPENAI_API_KEY=your_openai_api_key_here
+
+# Optional: For chat completions
+export OPENAI_MODEL=gpt-3.5-turbo
+```
+
+### 5. Prepare Your Files
 - **CV File**: Place your CV data in `resources/cv.json` (JSON format)
 - **PDF File**: Place any PDF reading in `resources/example_reading.pdf` (optional)
 
-### 5. Run the Application
+### 6. Run the Application
 ```bash
 python main.py
 ```
