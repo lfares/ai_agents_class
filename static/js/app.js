@@ -1018,14 +1018,38 @@ async function startTextToSpeech() {
             return;
         }
         
-        // Get only the agent response text (interview results)
+        // Get the result text (works for both interview and PDF summary)
         const resultText = document.getElementById('resultText');
         if (!resultText || !resultText.textContent.trim()) {
             showTtsError('No results to read');
             return;
         }
         
-        let textToRead = resultText.textContent.trim();
+        let textToRead = '';
+        
+        // Check if it's a PDF summary (has table) or interview result
+        const summaryTable = resultText.querySelector('.reading-summary-table');
+        if (summaryTable) {
+            // For PDF summary - read title and table content
+            const title = summaryTable.querySelector('h3')?.textContent.trim() || '';
+            const rows = summaryTable.querySelectorAll('td');
+            
+            textToRead = title + '. ';
+            rows.forEach((cell, index) => {
+                const cellText = cell.textContent.trim();
+                if (cellText) {
+                    // Add a label for each cell
+                    if (index % 2 === 0) {
+                        textToRead += 'Key Concepts: ' + cellText + '. ';
+                    } else {
+                        textToRead += 'Relevance: ' + cellText + '. ';
+                    }
+                }
+            });
+        } else {
+            // For interview results - read all text
+            textToRead = resultText.textContent.trim();
+        }
         
         if (!textToRead) {
             showTtsError('No text content found to read');
