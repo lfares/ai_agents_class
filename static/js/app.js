@@ -1039,8 +1039,8 @@ async function startTextToSpeech() {
         
         console.log('Converting text to speech:', textToRead.length, 'characters');
         
-        // Update UI
-        updateTtsUI(true);
+        // Update UI to show loading
+        updateTtsUI('loading');
         
         // Call TTS API
         const response = await fetch('/api/text-to-speech', {
@@ -1130,17 +1130,23 @@ function stopTextToSpeech() {
     btn.disabled = false;
 }
 
-function updateTtsUI(playing) {
+function updateTtsUI(state) {
     const btn = document.getElementById('ttsBtn');
     const btnText = document.getElementById('ttsBtnText');
     const btnIcon = btn.querySelector('i');
     
-    if (playing) {
+    if (state === 'loading') {
+        btn.classList.remove('playing');
+        btn.classList.add('loading');
+        btnText.textContent = 'Loading...';
+        if (btnIcon) btnIcon.className = 'fas fa-spinner fa-spin';
+    } else if (state === true || state === 'playing') {
+        btn.classList.remove('loading');
         btn.classList.add('playing');
         btnText.textContent = 'Stop';
         if (btnIcon) btnIcon.className = 'fas fa-stop';
     } else {
-        btn.classList.remove('playing');
+        btn.classList.remove('playing', 'loading');
         btnText.textContent = 'Read Aloud';
         if (btnIcon) btnIcon.className = 'fas fa-volume-up';
     }

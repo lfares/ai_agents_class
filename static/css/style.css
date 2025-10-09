@@ -880,6 +880,11 @@ body {
 }
 
 /* TTS Button Styles */
+.btn.loading {
+    cursor: wait;
+    opacity: 0.8;
+}
+
 .btn.playing {
     background: linear-gradient(135deg, #ff6b6b, #ee5a52) !important;
     color: white !important;
