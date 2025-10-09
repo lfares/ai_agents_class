@@ -1067,11 +1067,13 @@ async function startTextToSpeech() {
         }
         
         console.log('Converting text to speech:', textToRead.length, 'characters');
+        console.log('Text preview:', textToRead.substring(0, 100));
         
         // Update UI to show loading
         updateTtsUI('loading');
         
         // Call TTS API
+        console.log('Calling /api/text-to-speech endpoint...');
         const response = await fetch('/api/text-to-speech', {
             method: 'POST',
             headers: {
@@ -1083,8 +1085,11 @@ async function startTextToSpeech() {
             })
         });
         
+        console.log('TTS Response status:', response.status);
+        
         if (!response.ok) {
             const errorData = await response.json();
+            console.error('TTS Error response:', errorData);
             if (errorData.error && errorData.error.includes('API key')) {
                 throw new Error('Text-to-Speech service error: ' + errorData.error);
             }
@@ -1092,6 +1097,7 @@ async function startTextToSpeech() {
         }
         
         const result = await response.json();
+        console.log('TTS Result received:', result.success, 'audio length:', result.audio_data?.length);
         
         if (result.success && result.audio_data) {
             // Create audio element and play
