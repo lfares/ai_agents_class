@@ -1249,6 +1249,108 @@ function updateInterestTags() {
     ).join('');
 }
 
+// ===== Voice Input for Interest Field =====
+let interestRecognition = null;
+let isInterestTranscribing = false;
+
+function toggleInterestVoiceRecording() {
+    if (isInterestTranscribing) {
+        stopInterestTranscription();
+    } else {
+        startInterestTranscription();
+    }
+}
+
+function startInterestTranscription() {
+    // Check if browser supports Web Speech API
+    if (!('webkitSpeechRecognition' in window)) {
+        alert('Voice input is not supported in your browser. Please use Chrome or Edge.');
+        return;
+    }
+    
+    isInterestTranscribing = true;
+    const input = document.getElementById('customInterestInput');
+    
+    // Clear input when starting
+    input.value = '';
+    
+    // Initialize recognition
+    interestRecognition = new webkitSpeechRecognition();
+    interestRecognition.continuous = false; // Stop after one phrase
+    interestRecognition.interimResults = true;
+    interestRecognition.lang = 'en-US';
+    
+    // Update UI
+    updateInterestVoiceUI(true, 'listening');
+    
+    interestRecognition.onresult = function(event) {
+        let interimTranscript = '';
+        let finalTranscript = '';
+        
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+                finalTranscript += transcript;
+            } else {
+                interimTranscript += transcript;
+            }
+        }
+        
+        // Show interim or final transcript
+        input.value = finalTranscript || interimTranscript;
+    };
+    
+    interestRecognition.onerror = function(event) {
+        console.error('Interest speech recognition error:', event.error);
+        isInterestTranscribing = false;
+        updateInterestVoiceUI(false);
+        
+        if (event.error !== 'aborted' && event.error !== 'no-speech') {
+            showVoiceError('Voice input error: ' + event.error);
+        }
+    };
+    
+    interestRecognition.onend = function() {
+        isInterestTranscribing = false;
+        updateInterestVoiceUI(false);
+    };
+    
+    try {
+        interestRecognition.start();
+    } catch (error) {
+        console.error('Error starting interest recognition:', error);
+        isInterestTranscribing = false;
+        updateInterestVoiceUI(false);
+    }
+}
+
+function stopInterestTranscription() {
+    if (interestRecognition) {
+        interestRecognition.stop();
+    }
+    isInterestTranscribing = false;
+    updateInterestVoiceUI(false);
+}
+
+function updateInterestVoiceUI(isActive, state = '') {
+    const btn = document.getElementById('interestVoiceBtn');
+    const status = document.getElementById('interestVoiceStatus');
+    const statusText = document.getElementById('interestVoiceStatusText');
+    
+    if (isActive) {
+        btn.classList.add('recording');
+        status.style.display = 'flex';
+        
+        if (state === 'listening') {
+            status.className = 'voice-status recording';
+            statusText.textContent = 'Listening... (speak one focus area)';
+        }
+    } else {
+        btn.classList.remove('recording');
+        status.style.display = 'none';
+    }
+}
+
 // Initialize voice and interest tags
 document.addEventListener('DOMContentLoaded', function() {
     checkVoiceAvailability();
