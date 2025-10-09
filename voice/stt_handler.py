@@ -1,10 +1,18 @@
 """
 Speech-to-Text handler using OpenAI Whisper
+Note: Whisper is optional for production (Web Speech API is used instead)
 """
-import whisper
 import os
 import tempfile
 from typing import Optional
+
+# Try to import whisper, but don't fail if not available
+try:
+    import whisper
+    WHISPER_AVAILABLE = True
+except ImportError:
+    WHISPER_AVAILABLE = False
+    print("⚠️  Whisper not available. Web Speech API will be used for STT.")
 
 class SpeechToTextHandler:
     """Handle speech-to-text conversion using OpenAI Whisper"""
@@ -18,7 +26,11 @@ class SpeechToTextHandler:
         """
         self.model_size = model_size
         self.model = None
-        self._load_model()
+        
+        if WHISPER_AVAILABLE:
+            self._load_model()
+        else:
+            print("ℹ️  Whisper not installed. STT features will use Web Speech API only.")
     
     def _load_model(self):
         """Load Whisper model"""
@@ -28,7 +40,7 @@ class SpeechToTextHandler:
             print("✅ Whisper model loaded successfully")
         except Exception as e:
             print(f"❌ Error loading Whisper model: {e}")
-            raise
+            # Don't raise - allow app to continue without Whisper
     
     def transcribe_audio_file(self, audio_file_path: str) -> str:
         """
@@ -40,8 +52,8 @@ class SpeechToTextHandler:
         Returns:
             Transcribed text
         """
-        if not self.model:
-            raise RuntimeError("Whisper model not loaded")
+        if not WHISPER_AVAILABLE or not self.model:
+            raise RuntimeError("Whisper not available. Please use Web Speech API for voice input.")
         
         if not os.path.exists(audio_file_path):
             raise FileNotFoundError(f"Audio file not found: {audio_file_path}")
@@ -82,8 +94,8 @@ class SpeechToTextHandler:
         Returns:
             Transcribed text
         """
-        if not self.model:
-            raise RuntimeError("Whisper model not loaded")
+        if not WHISPER_AVAILABLE or not self.model:
+            raise RuntimeError("Whisper not available. Please use Web Speech API for voice input.")
         
         try:
             # Create temporary file for audio data
@@ -106,5 +118,10 @@ class SpeechToTextHandler:
         """Get information about the loaded model"""
         return {
             "model_size": self.model_size,
-            "is_loaded": self.model is not None
+            "is_loaded": self.model is not None,
+            "whisper_available": WHISPER_AVAILABLE
         }
+    
+    def is_available(self) -> bool:
+        """Check if Whisper STT is available"""
+        return WHISPER_AVAILABLE and self.model is not None
