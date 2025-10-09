@@ -144,11 +144,20 @@ def create_interviewer_agent(llm=None):
         cfg["llm"] = llm
     return Agent(**cfg)
 
-def create_reading_summary_agent(llm=None):
+def create_reading_summary_agent(llm=None, custom_interests=None):
+    # Default interests
+    default_interests = "AI in Education, Marginalized Communities, EdTech, Learning Design, Career Readiness, K-12, Soft Skills"
+    
+    # Combine default and custom interests
+    if custom_interests:
+        interests = f"{default_interests}, {custom_interests}"
+    else:
+        interests = default_interests
+    
     cfg = dict(
         role="Reading Summarizer",
         goal="Read a pdf file (e.g. an article or book chapter) and generate an excel file with what Livia would find relevant and a summary of the key concepts.",
-        backstory="You are helping Livia summarize readings from her Graduate Education classes. You have access to the reading material in pdf format. Use this information to generate an excel file with what Livia would find relevant, given her interests, and a summary of the key concepts. Write like Livia would - natural and informal.",
+        backstory=f"You are helping Livia summarize readings from her Graduate Education classes. You have access to the reading material in pdf format. Use this information to generate an excel file with what Livia would find relevant, given her interests in: {interests}. Focus on summarizing the key concepts and highlighting connections to these areas. Write like Livia would - natural and informal.",
         verbose=False,
         allow_delegation=False,
         tools=[FileReadTool()],

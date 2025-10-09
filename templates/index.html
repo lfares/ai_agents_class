@@ -152,15 +152,23 @@
 
                     <div class="interests-info">
                         <h4><i class="fas fa-heart"></i> Focus Areas</h4>
-                        <div class="interests-tags">
-                            <span class="tag">AI in Education</span>
-                            <span class="tag">Marginalized Communities</span>
-                            <span class="tag">EdTech</span>
-                            <span class="tag">Learning Design</span>
-                            <span class="tag">Career Readiness</span>
-                            <span class="tag">K-12</span>
-                            <span class="tag">Soft Skills</span>
+                        <p class="helper-text">Click on any tag to remove it. Add new ones using the input below.</p>
+                        
+                        <div class="add-interest-group">
+                            <input 
+                                type="text" 
+                                id="customInterestInput" 
+                                placeholder="e.g., Machine Learning, Assessment, etc."
+                                class="form-control"
+                                onkeypress="if(event.key==='Enter'){event.preventDefault();addInterestTag();}"
+                            />
+                            <button type="button" class="btn btn-outline btn-small" onclick="addInterestTag()">
+                                <i class="fas fa-plus"></i> Add
+                            </button>
                         </div>
+                        
+                        <div id="allInterestsTags" class="interests-tags all-tags"></div>
+                        <input type="hidden" id="allInterests" name="custom_interests" value="" />
                     </div>
 
                     <div class="form-actions">

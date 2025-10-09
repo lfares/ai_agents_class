@@ -186,17 +186,27 @@ def pdf_summarization():
         pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(pdf_path)
         
+        # Get custom interests if provided
+        custom_interests = request.form.get('custom_interests', '').strip()
+        
         # Configure LLM
         llm = get_llm_config()
         
-        # Create agent and task
-        reader = create_reading_summary_agent(llm=llm)
+        # Create agent and task with custom interests
+        reader = create_reading_summary_agent(llm=llm, custom_interests=custom_interests)
         
         # Create temporary Excel path
         excel_filename = filename.replace('.pdf', '_summary.xlsx')
         excel_path = os.path.join(app.config['UPLOAD_FOLDER'], excel_filename)
         
-        task = create_reading_summary_task(reader, pdf_path, excel_path, INTERESTS)
+        # Combine default and custom interests for task
+        interests_for_task = INTERESTS.copy()
+        if custom_interests:
+            # Split custom interests by comma and add to list
+            custom_list = [i.strip() for i in custom_interests.split(',') if i.strip()]
+            interests_for_task.extend(custom_list)
+        
+        task = create_reading_summary_task(reader, pdf_path, excel_path, interests_for_task)
         
         # Create and run crew
         crew = Crew(

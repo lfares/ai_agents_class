@@ -1032,19 +1032,24 @@ async function startTextToSpeech() {
         if (summaryTable) {
             // For PDF summary - read title and table content
             const title = summaryTable.querySelector('h3')?.textContent.trim() || '';
-            const rows = summaryTable.querySelectorAll('td');
+            
+            // Get table headers
+            const headers = summaryTable.querySelectorAll('th');
+            const headerTexts = Array.from(headers).map(h => h.textContent.trim().replace(/[📚💡❤️]/g, ''));
+            
+            // Get table cells
+            const rows = summaryTable.querySelectorAll('tbody tr');
             
             textToRead = title + '. ';
-            rows.forEach((cell, index) => {
-                const cellText = cell.textContent.trim();
-                if (cellText) {
-                    // Add a label for each cell
-                    if (index % 2 === 0) {
-                        textToRead += 'Key Concepts: ' + cellText + '. ';
-                    } else {
-                        textToRead += 'Relevance: ' + cellText + '. ';
+            
+            rows.forEach((row) => {
+                const cells = row.querySelectorAll('td');
+                cells.forEach((cell, index) => {
+                    const cellText = cell.textContent.trim();
+                    if (cellText && headerTexts[index]) {
+                        textToRead += headerTexts[index] + ': ' + cellText + '. ';
                     }
-                }
+                });
             });
         } else {
             // For interview results - read all text
@@ -1182,7 +1187,70 @@ function showTtsError(message) {
     alert('TTS Error: ' + message);
 }
 
-// Initialize voice functionality
+// Interest Tags Management
+let allInterests = [
+    'AI in Education',
+    'Marginalized Communities',
+    'EdTech',
+    'Learning Design',
+    'Career Readiness',
+    'K-12',
+    'Soft Skills'
+];
+
+function initializeInterestTags() {
+    updateInterestTags();
+}
+
+function addInterestTag() {
+    const input = document.getElementById('customInterestInput');
+    const interest = input.value.trim();
+    
+    if (!interest) {
+        return;
+    }
+    
+    // Check if already exists (case-insensitive)
+    const exists = allInterests.some(item => item.toLowerCase() === interest.toLowerCase());
+    if (exists) {
+        alert('This focus area is already in your list!');
+        input.value = '';
+        return;
+    }
+    
+    // Add to array
+    allInterests.push(interest);
+    
+    // Update UI
+    updateInterestTags();
+    
+    // Clear input
+    input.value = '';
+    input.focus();
+}
+
+function removeInterestTag(interest) {
+    allInterests = allInterests.filter(item => item !== interest);
+    updateInterestTags();
+}
+
+function updateInterestTags() {
+    const container = document.getElementById('allInterestsTags');
+    const hiddenInput = document.getElementById('allInterests');
+    
+    // Update hidden input with comma-separated values
+    hiddenInput.value = allInterests.join(', ');
+    
+    // Update visual tags
+    container.innerHTML = allInterests.map(interest => 
+        `<span class="tag removable-tag" onclick="removeInterestTag('${interest.replace(/'/g, "\\'")}')">
+            ${interest}
+        </span>`
+    ).join('');
+}
+
+// Initialize voice and interest tags
 document.addEventListener('DOMContentLoaded', function() {
     checkVoiceAvailability();
+    initializeInterestTags();
 });
