@@ -3,6 +3,8 @@ import os
 import tempfile
 import base64
 from typing import Optional
+from gtts import gTTS
+import io
 
 class TextToSpeechHandler:
     def __init__(self):
@@ -34,7 +36,7 @@ class TextToSpeechHandler:
     
     def text_to_speech(self, text: str, voice: str = "nova") -> Optional[str]:
         """
-        Convert text to speech using OpenAI TTS
+        Convert text to speech using OpenAI TTS with Google TTS fallback
         
         Args:
             text: Text to convert to speech
@@ -43,41 +45,61 @@ class TextToSpeechHandler:
         Returns:
             Base64 encoded audio data or None if error
         """
-        if not self.client:
-            print("❌ TTS client not available")
-            return None
-            
         if not text or not text.strip():
             print("❌ No text provided for TTS")
             return None
-            
+        
+        # Truncate very long text
+        max_length = 4000
+        if len(text) > max_length:
+            text = text[:max_length] + "..."
+            print(f"⚠️ Text truncated to {max_length} characters")
+        
+        # Try OpenAI TTS first if client is available
+        if self.client:
+            try:
+                print(f"🎤 Trying OpenAI TTS with voice: {voice}")
+                print(f"Text length: {len(text)} characters")
+                
+                response = self.client.audio.speech.create(
+                    model=self.model,
+                    voice=voice,
+                    input=text,
+                    response_format="mp3"
+                )
+                
+                audio_data = response.content
+                audio_base64 = base64.b64encode(audio_data).decode('utf-8')
+                
+                print(f"✅ OpenAI TTS successful: {len(audio_data)} bytes")
+                return audio_base64
+                
+            except Exception as e:
+                print(f"⚠️ OpenAI TTS failed: {e}")
+                print("🔄 Falling back to Google TTS...")
+        
+        # Fallback to Google TTS
         try:
-            print(f"🎤 Converting text to speech with voice: {voice}")
+            print(f"🎤 Using Google TTS (free)")
             print(f"Text length: {len(text)} characters")
             
-            # Truncate very long text to avoid API limits
-            max_length = 4000  # OpenAI TTS limit
-            if len(text) > max_length:
-                text = text[:max_length] + "..."
-                print(f"⚠️ Text truncated to {max_length} characters")
+            # Create gTTS object with female voice (default Google voice is female)
+            tts = gTTS(text=text, lang='en', slow=False)
             
-            # Generate speech
-            response = self.client.audio.speech.create(
-                model=self.model,
-                voice=voice,
-                input=text,
-                response_format="mp3"
-            )
+            # Save to bytes buffer
+            audio_buffer = io.BytesIO()
+            tts.write_to_fp(audio_buffer)
+            audio_buffer.seek(0)
             
-            # Convert to base64 for web transmission
-            audio_data = response.content
+            # Convert to base64
+            audio_data = audio_buffer.read()
             audio_base64 = base64.b64encode(audio_data).decode('utf-8')
             
-            print(f"✅ TTS conversion successful: {len(audio_data)} bytes")
+            print(f"✅ Google TTS successful: {len(audio_data)} bytes")
             return audio_base64
             
         except Exception as e:
-            print(f"❌ Error in TTS conversion: {e}")
+            print(f"❌ Google TTS also failed: {e}")
             import traceback
             traceback.print_exc()
             return None

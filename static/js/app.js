@@ -990,33 +990,44 @@ async function checkVoiceAvailability() {
 
 // Text-to-Speech Functions
 async function toggleTextToSpeech() {
+    const btn = document.getElementById('ttsBtn');
+    
     if (isPlayingTTS) {
         stopTextToSpeech();
     } else {
-        await startTextToSpeech();
+        // Disable button to prevent multiple clicks
+        btn.disabled = true;
+        try {
+            await startTextToSpeech();
+        } finally {
+            // Re-enable button after TTS starts or fails
+            setTimeout(() => {
+                if (!isPlayingTTS) {
+                    btn.disabled = false;
+                }
+            }, 500);
+        }
     }
 }
 
 async function startTextToSpeech() {
     try {
-        // Get the results content
-        const resultsContent = document.querySelector('.results-content');
-        if (!resultsContent) {
+        // Prevent multiple concurrent TTS calls
+        if (isPlayingTTS) {
+            console.log('TTS already playing, ignoring...');
+            return;
+        }
+        
+        // Get only the agent response text (interview results)
+        const resultText = document.getElementById('resultText');
+        if (!resultText || !resultText.textContent.trim()) {
             showTtsError('No results to read');
             return;
         }
         
-        // Extract text from results (skip loading and error states)
-        const textElements = resultsContent.querySelectorAll('h3, p, .agent-response, .summary-content');
-        let textToRead = '';
+        let textToRead = resultText.textContent.trim();
         
-        textElements.forEach(element => {
-            if (element.style.display !== 'none' && element.textContent.trim()) {
-                textToRead += element.textContent.trim() + ' ';
-            }
-        });
-        
-        if (!textToRead.trim()) {
+        if (!textToRead) {
             showTtsError('No text content found to read');
             return;
         }
@@ -1060,19 +1071,33 @@ async function startTextToSpeech() {
             
             currentAudio = new Audio(audioUrl);
             currentAudio.onended = () => {
+                console.log('Audio playback ended');
                 isPlayingTTS = false;
                 updateTtsUI(false);
                 URL.revokeObjectURL(audioUrl);
+                // Re-enable button
+                const btn = document.getElementById('ttsBtn');
+                btn.disabled = false;
             };
             
             currentAudio.onerror = () => {
-                showTtsError('Error playing audio');
+                console.error('Error playing audio');
+                // Don't show error alert - just stop silently
                 isPlayingTTS = false;
                 updateTtsUI(false);
+                const btn = document.getElementById('ttsBtn');
+                btn.disabled = false;
             };
             
-            await currentAudio.play();
             isPlayingTTS = true;
+            updateTtsUI(true);
+            
+            // Re-enable button so user can stop
+            const btn = document.getElementById('ttsBtn');
+            btn.disabled = false;
+            
+            await currentAudio.play();
+            console.log('Audio playback started');
             
         } else {
             throw new Error('No audio data received');
@@ -1080,32 +1105,44 @@ async function startTextToSpeech() {
         
     } catch (error) {
         console.error('TTS Error:', error);
-        showTtsError('Failed to read text aloud: ' + error.message);
+        // Only show alert for real errors, not for user-initiated stops
+        if (error.message && !error.message.includes('aborted')) {
+            console.warn('TTS failed:', error.message);
+        }
         isPlayingTTS = false;
         updateTtsUI(false);
+        const btn = document.getElementById('ttsBtn');
+        btn.disabled = false;
     }
 }
 
 function stopTextToSpeech() {
-    if (currentAudio && isPlayingTTS) {
+    console.log('Stopping TTS...');
+    if (currentAudio) {
         currentAudio.pause();
         currentAudio.currentTime = 0;
+        currentAudio.src = ''; // Clear the source
         currentAudio = null;
-        isPlayingTTS = false;
-        updateTtsUI(false);
     }
+    isPlayingTTS = false;
+    updateTtsUI(false);
+    const btn = document.getElementById('ttsBtn');
+    btn.disabled = false;
 }
 
 function updateTtsUI(playing) {
     const btn = document.getElementById('ttsBtn');
     const btnText = document.getElementById('ttsBtnText');
+    const btnIcon = btn.querySelector('i');
     
     if (playing) {
         btn.classList.add('playing');
-        btnText.textContent = 'Stop Reading';
+        btnText.textContent = 'Stop';
+        if (btnIcon) btnIcon.className = 'fas fa-stop';
     } else {
         btn.classList.remove('playing');
         btnText.textContent = 'Read Aloud';
+        if (btnIcon) btnIcon.className = 'fas fa-volume-up';
     }
 }
 

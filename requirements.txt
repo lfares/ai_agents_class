@@ -14,3 +14,4 @@ tokenizers==0.20.3
 openai-whisper==20250625
 pyaudio==0.2.14
 ffmpeg-python==0.2.0
+gtts==2.5.4
