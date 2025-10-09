@@ -1,6 +1,13 @@
 # AI Agents Class
 MIT MAS.665 class work on AI Agents and the Agentic Web.
 
+## 🎥 Demo Video
+**Watch the full demonstration:** [AI Agents with Voice Capabilities - Demo](https://youtu.be/-CccLfRQrco)
+
+See the interview preparation and PDF summarization agents in action with speech-to-text and text-to-speech features!
+
+---
+
 ## Overview
 This project provides AI agents with voice capabilities to help with:
 1. **Job Interview Preparation** - Generate interview questions and answers based on CV and job description
